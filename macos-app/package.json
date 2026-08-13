@@ -1,0 +1,45 @@
+{
+  "name": "dsh-macos-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DeepSeek Harness macOS desktop wrapper (Electron shell around the local dsh web server)",
+  "license": "MIT",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "gen:icon": "node scripts/gen-icon.mjs",
+    "dist:mac": "node scripts/gen-icon.mjs && electron-builder --mac",
+    "dist:mac:arm64": "node scripts/gen-icon.mjs && electron-builder --mac --arm64",
+    "dist:mac:x64": "node scripts/gen-icon.mjs && electron-builder --mac --x64"
+  },
+  "build": {
+    "appId": "ai.deepseek.harness.desktop",
+    "productName": "DeepSeek Harness",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "package.json"
+    ],
+    "mac": {
+      "icon": "build/icon.png",
+      "category": "public.app-category.developer-tools",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "sign": false
+    }
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "electron": "^33.4.11",
+    "electron-builder": "^26.0.12"
+  }
+}
