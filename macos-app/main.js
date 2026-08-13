@@ -26,8 +26,8 @@ function resolveRepoPath() {
   const candidates = []
   if (process.env.DSH_REPO_PATH) candidates.push(process.env.DSH_REPO_PATH)
   if (app.isPackaged) candidates.push(path.join(process.resourcesPath, 'deepseek'))
-  candidates.push(path.join(app.getPath('home'), 'deepseek_harness', 'deepseek'))
-  candidates.push(path.resolve(__dirname, '..', 'deepseek'))
+  candidates.push(path.join(app.getPath('home'), 'deepseek-harness'))
+  candidates.push(path.resolve(__dirname, '..'))
   for (const candidate of candidates) {
     if (repoExists(candidate)) return candidate
   }
@@ -279,7 +279,7 @@ if (!gotLock) {
     if (!repoPath) {
       dialog.showErrorBox(
         '找不到 deepseek 仓库',
-        '未找到 deepseek-harness 仓库。请设置环境变量 DSH_REPO_PATH 指向仓库目录，或把仓库放在 ~/deepseek_harness/deepseek。',
+        '未找到 deepseek-harness 仓库。请设置环境变量 DSH_REPO_PATH 指向仓库目录，或把仓库放在 ~/deepseek-harness。',
       )
       app.quit()
       return
