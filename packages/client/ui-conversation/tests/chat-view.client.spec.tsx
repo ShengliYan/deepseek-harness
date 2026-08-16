@@ -415,8 +415,9 @@ describe('ChatView', () => {
     Object.defineProperty(scroller, 'scrollHeight', { value: 800, writable: true })
     Object.defineProperty(scroller, 'clientHeight', { value: 200, writable: true })
     readerScroll(scroller, 50)
-    fireEvent.click(view.getByText('加载更早'))
-    // The reader moves after the request starts; this, not the click-time
+    readerScroll(scroller, 0) // arrival at the top starts the older page
+    expect(h.loadOlder).toHaveBeenCalledTimes(1)
+    // The reader moves after the request starts; this, not the trigger-time
     // row, is the intent the arriving page must preserve.
     firstTop = -200
     nextTop = 60
@@ -998,8 +999,11 @@ describe('ChatView', () => {
       () => ({ top: anchoredTop, bottom: anchoredTop + 40 } as DOMRect),
     )
     readerScroll(scroller, 80)
-    // Arm the paging anchor, then deliver an older page (head seq decreases).
-    fireEvent.click(view.getByText('加载更早'))
+    // Arrival at the top arms the paging anchor; deliver an older page
+    // (head seq decreases) while the reader keeps moving.
+    readerScroll(scroller, 0)
+    expect(h.loadOlder).toHaveBeenCalledTimes(1)
+    readerScroll(scroller, 80)
     Object.defineProperty(scroller, 'scrollHeight', { value: 1600, writable: true })
     anchoredTop = 700
     act(() => { h.set({ nodes: [user(1, 'old'), assistant(2, 'b'), user(5, 'later'), assistant(6, 'a')] }) })
@@ -1016,7 +1020,7 @@ describe('ChatView', () => {
     Object.defineProperty(scroller, 'scrollHeight', { value: 800, writable: true })
     Object.defineProperty(scroller, 'clientHeight', { value: 200, writable: true })
     readerScroll(scroller, 50)
-    fireEvent.click(view.getByText('加载更早'))
+    readerScroll(scroller, 0) // arrival at the top starts the older page
     fireEvent.click(view.getByLabelText('回到底部'))
     Object.defineProperty(scroller, 'scrollHeight', { value: 1_300, writable: true })
     act(() => { h.set({ nodes: [assistant(2, 'older'), user(9, 'late')] }) })
@@ -1235,13 +1239,116 @@ describe('ChatView', () => {
     }
   })
 
-  it('paging button loads older and shows its busy label', () => {
-    const h = makeHarness({ nodes: [user(5, 'later')], hasMore: true })
-    const view = render(<h.ChatView {...h.props} />)
-    fireEvent.click(view.getByText('加载更早'))
-    expect(h.loadOlder).toHaveBeenCalledTimes(1)
-    act(() => { h.set({ loadingOlder: true }) })
-    expect(view.getByText('加载中…')).toBeTruthy()
+  it('reaching the top auto-loads the older page and shows the busy indicator', () => {
+    const host = document.createElement('div')
+    host.setAttribute('data-conversation-scroll', '')
+    Object.defineProperty(host, 'scrollHeight', { value: 2_000, writable: true, configurable: true })
+    Object.defineProperty(host, 'clientHeight', { value: 500, writable: true, configurable: true })
+    Object.defineProperty(host, 'scrollTop', { value: 0, writable: true, configurable: true })
+    document.body.appendChild(host)
+    try {
+      const h = makeHarness({ nodes: [user(5, 'later')], hasMore: true })
+      const view = render(<h.ChatView {...h.props} />, { container: host })
+      // Open pins the floor and the overflowing window pages nothing by itself.
+      expect(host.scrollTop).toBe(2_000)
+      expect(h.loadOlder).not.toHaveBeenCalled()
+      readerScroll(host, 0)
+      expect(h.loadOlder).toHaveBeenCalledTimes(1)
+      act(() => { h.set({ loadingOlder: true }) })
+      expect(view.getByText('加载中…')).toBeTruthy()
+      // The click path is gone: arrival at the top is the paging gesture.
+      expect(view.queryByText('加载更早')).toBeNull()
+    } finally {
+      host.remove()
+    }
+  })
+
+  it('fills a loaded window shorter than its scrollport so older pages stay reachable', () => {
+    const host = document.createElement('div')
+    host.setAttribute('data-conversation-scroll', '')
+    Object.defineProperty(host, 'scrollHeight', { value: 300, writable: true, configurable: true })
+    Object.defineProperty(host, 'clientHeight', { value: 500, writable: true, configurable: true })
+    Object.defineProperty(host, 'scrollTop', { value: 0, writable: true, configurable: true })
+    document.body.appendChild(host)
+    try {
+      const h = makeHarness({ nodes: [user(5, 'later')], hasMore: true })
+      render(<h.ChatView {...h.props} />, { container: host })
+      // No overflow means no top edge to scroll to: the page pulls itself.
+      expect(h.loadOlder).toHaveBeenCalledTimes(1)
+    } finally {
+      host.remove()
+    }
+  })
+
+  it('does not page while a request is in flight or when history is exhausted', () => {
+    const busyHost = document.createElement('div')
+    busyHost.setAttribute('data-conversation-scroll', '')
+    Object.defineProperty(busyHost, 'scrollHeight', { value: 2_000, writable: true, configurable: true })
+    Object.defineProperty(busyHost, 'clientHeight', { value: 500, writable: true, configurable: true })
+    Object.defineProperty(busyHost, 'scrollTop', { value: 0, writable: true, configurable: true })
+    const doneHost = document.createElement('div')
+    doneHost.setAttribute('data-conversation-scroll', '')
+    Object.defineProperty(doneHost, 'scrollHeight', { value: 2_000, writable: true, configurable: true })
+    Object.defineProperty(doneHost, 'clientHeight', { value: 500, writable: true, configurable: true })
+    Object.defineProperty(doneHost, 'scrollTop', { value: 0, writable: true, configurable: true })
+    document.body.append(busyHost, doneHost)
+    try {
+      const busy = makeHarness({ nodes: [user(5, 'later')], hasMore: true, loadingOlder: true })
+      render(<busy.ChatView {...busy.props} />, { container: busyHost })
+      readerScroll(busyHost, 0)
+      expect(busy.loadOlder).not.toHaveBeenCalled()
+      const done = makeHarness({ nodes: [user(5, 'later')], hasMore: false })
+      render(<done.ChatView {...done.props} />, { container: doneHost })
+      readerScroll(doneHost, 0)
+      expect(done.loadOlder).not.toHaveBeenCalled()
+    } finally {
+      busyHost.remove()
+      doneHost.remove()
+    }
+  })
+
+  it('a remount restored flush with the history start pages itself', () => {
+    const host = document.createElement('div')
+    host.setAttribute('data-conversation-scroll', '')
+    Object.defineProperty(host, 'scrollHeight', { value: 2_000, writable: true, configurable: true })
+    Object.defineProperty(host, 'clientHeight', { value: 500, writable: true, configurable: true })
+    Object.defineProperty(host, 'scrollTop', { value: 0, writable: true, configurable: true })
+    document.body.appendChild(host)
+    try {
+      const h = makeHarness({ nodes: [user(5, 'later'), assistant(6, 'a')], hasMore: true })
+      h.chatScroll.save({ anchorKey: 'fixture:user:5', anchorTop: 0, scrollTop: 0 })
+      render(<h.ChatView {...h.props} />, { container: host })
+      // The restored position cannot gain overscroll events at the top, so a
+      // still-paginated window pulls the next page on its own.
+      expect(h.loadOlder).toHaveBeenCalledTimes(1)
+    } finally {
+      host.remove()
+    }
+  })
+
+  it('chains the next page when a landed prepend leaves the reader on the top edge', () => {
+    const host = document.createElement('div')
+    host.setAttribute('data-conversation-scroll', '')
+    Object.defineProperty(host, 'scrollHeight', { value: 2_000, writable: true, configurable: true })
+    Object.defineProperty(host, 'clientHeight', { value: 500, writable: true, configurable: true })
+    Object.defineProperty(host, 'scrollTop', { value: 0, writable: true, configurable: true })
+    document.body.appendChild(host)
+    try {
+      const h = makeHarness({ nodes: [user(5, 'later'), assistant(6, 'a')], hasMore: true })
+      render(<h.ChatView {...h.props} />, { container: host })
+      act(() => {
+        readerScroll(host, 0)
+        // The session flips its busy flag synchronously with the request.
+        h.set({ loadingOlder: true })
+      })
+      expect(h.loadOlder).toHaveBeenCalledTimes(1)
+      // The arriving page restores the anchored position flush with the top
+      // (zero-height rows in jsdom), so the next page starts itself.
+      act(() => { h.set({ loadingOlder: false, nodes: [assistant(2, 'older'), user(5, 'later'), assistant(6, 'a')] }) })
+      expect(h.loadOlder).toHaveBeenCalledTimes(2)
+    } finally {
+      host.remove()
+    }
   })
 
   it('shows open error and loading states', () => {

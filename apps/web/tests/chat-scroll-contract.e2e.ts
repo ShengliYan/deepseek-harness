@@ -423,16 +423,60 @@ async function expectMarkerAboveComposer(page: Page, marker: string): Promise<vo
   expect(geometry.rowBottom).toBeLessThanOrEqual(geometry.composerTop + GEOMETRY_TOLERANCE)
 }
 
-async function loadEarlierWithAnchor(page: Page): Promise<void> {
-  await wheelToHistoryStart(page)
-  const older = page.getByRole('button', { name: 'Load earlier', exact: true })
-  await older.waitFor({ timeout: 10_000 })
-  const anchor = await visibleFlowAnchor(page)
-  const before = await loadedFlowRows(page)
-  await older.click()
-  await expect.poll(() => loadedFlowRows(page), { timeout: 30_000 }).toBeGreaterThan(before)
+/**
+ * Drive the transcript to just above the auto-paging trigger zone with
+ * per-frame scrollTop writes — the same reader-input signature a pan leaves
+ * (see flingTranscript) — without entering it, so a caller can sample the
+ * pre-page state deterministically.
+ */
+async function approachHistoryStart(page: Page): Promise<void> {
+  await page.locator('[data-conversation-scroll]').evaluate(async (host) => {
+    while (host.scrollTop > 120) {
+      host.scrollTop -= Math.min(1_200, host.scrollTop - 120)
+      await new Promise<void>(resolve => requestAnimationFrame(() => { resolve() }))
+    }
+  })
   await nextPaint(page)
-  await expectSameFlowTop(page, anchor)
+}
+
+/** The final arrival: crossing the top edge is itself the paging gesture. */
+async function arriveAtHistoryStart(page: Page): Promise<void> {
+  await page.locator('[data-conversation-scroll]').evaluate(async (host) => {
+    while (host.scrollTop > 0) {
+      host.scrollTop -= Math.min(600, host.scrollTop)
+      await new Promise<void>(resolve => requestAnimationFrame(() => { resolve() }))
+    }
+  })
+  await nextPaint(page)
+}
+
+async function loadEarlierWithAnchor(page: Page): Promise<void> {
+  await approachHistoryStart(page)
+  // One evaluate samples the visible settled row and the row count together,
+  // before the arrival below triggers the automatic page.
+  const start = await page.locator('[data-conversation-scroll]').evaluate((host) => {
+    const rows = [...host.querySelectorAll<HTMLElement>('[data-chat-anchor-key]')]
+    const viewport = host.getBoundingClientRect()
+    const composer = host.querySelector<HTMLElement>('[data-composer-seat]')
+    const visibleBottom = composer?.getBoundingClientRect().top ?? viewport.bottom
+    const visible = rows.filter((candidate) => {
+      const rect = candidate.getBoundingClientRect()
+      return rect.bottom > viewport.top && rect.top < visibleBottom
+    })
+    const row = visible[0]
+    if (row?.dataset.chatAnchorKey === undefined) {
+      throw new Error('no visible settled Chat row before paging arrival')
+    }
+    return {
+      anchorKey: row.dataset.chatAnchorKey,
+      anchorTop: row.getBoundingClientRect().top - viewport.top,
+      rows: rows.length,
+    }
+  })
+  await arriveAtHistoryStart(page)
+  await expect.poll(() => loadedFlowRows(page), { timeout: 30_000 }).toBeGreaterThan(start.rows)
+  await nextPaint(page)
+  await expectSameFlowTop(page, { key: start.anchorKey, top: start.anchorTop })
 }
 
 async function fileExists(path: string): Promise<boolean> {
@@ -500,9 +544,10 @@ describe('web e2e: long Chat scroll contract', () => {
         await composer.fill(LIVE_TEXT_PROMPT)
         await world.page.getByRole('button', { name: 'Send message', exact: true }).click()
         await world.page.getByText(LIVE_TEXT_FIRST, { exact: false }).last().waitFor({ timeout: 15_000 })
-        await wheelToHistoryStart(world.page)
         const beforeRows = await loadedFlowRows(world.page)
-        await world.page.getByRole('button', { name: 'Load earlier', exact: true }).click()
+        await wheelToHistoryStart(world.page)
+        // Arrival at the top issues the older-page request itself — the route
+        // holds it; no button click exists anymore.
         await expect.poll(() => held, { timeout: 10_000 }).toBe(true)
 
         await wheelTranscript(world.page, 420)
@@ -528,18 +573,20 @@ describe('web e2e: long Chat scroll contract', () => {
 
       let additionalPages = 0
       while (additionalPages < 8) {
+        // The oldest marker means the whole log is loaded and the next
+        // arrival has nothing to page.
+        if (await world.page.locator('[data-conversation-scroll]')
+          .getByText(HISTORY_FIXTURE.markers.user(1), { exact: false }).count() > 0) break
+        const beforeRows = await loadedFlowRows(world.page)
         await wheelToHistoryStart(world.page)
-        if (await world.page.getByRole('button', { name: 'Load earlier', exact: true }).count() === 0) break
-        await loadEarlierWithAnchor(world.page)
+        await expect.poll(() => loadedFlowRows(world.page), { timeout: 30_000 }).toBeGreaterThan(beforeRows)
         additionalPages += 1
       }
       expect(additionalPages).toBeGreaterThan(0)
       // The whole log is loaded: turn 1's unique marker renders in the
-      // transcript (scoped: the sidebar search row also carries it) and no
-      // page remains.
+      // transcript (scoped: the sidebar search row also carries it).
       expect(await world.page.locator('[data-conversation-scroll]')
         .getByText(HISTORY_FIXTURE.markers.user(1), { exact: false }).count()).toBe(1)
-      expect(await world.page.getByRole('button', { name: 'Load earlier', exact: true }).count()).toBe(0)
       assertClean(world)
     })
   }, 180_000)
@@ -650,7 +697,11 @@ describe('web e2e: long Chat scroll contract', () => {
       )
       await loadEarlierWithAnchor(world.page)
       await loadEarlierWithAnchor(world.page)
+      // A third trip to the top; wait for its automatic page to settle before
+      // sampling the anchor the tab switches must preserve.
+      const beforeThird = await loadedFlowRows(world.page)
       await wheelToHistoryStart(world.page)
+      await expect.poll(() => loadedFlowRows(world.page), { timeout: 30_000 }).toBeGreaterThan(beforeThird)
       await wheelTranscript(world.page, 1_300)
       const sessionAnchor = await visibleFlowAnchor(world.page)
 
