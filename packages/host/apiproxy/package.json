@@ -35,6 +35,10 @@
     "./client": {
       "types": "./lib/types/fetch/client.d.ts",
       "default": "./lib/types/fetch/client.js"
+    },
+    "./random-uuid": {
+      "types": "./lib/types/fetch/random-uuid.d.ts",
+      "default": "./lib/types/fetch/random-uuid.js"
     }
   },
   "files": [

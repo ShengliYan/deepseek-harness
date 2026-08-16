@@ -62,7 +62,7 @@ Workspace 列表与 Session 列表是相互独立的重连基线。`workspace.cr
 
 ## 载体层（`/client` + 根路径）
 
-`AbstractApiClient` 持有全部协议不变量：签发 rpcId、包装／解包信封、Zod 解析、SSE 帧解码、一元请求超时，以及按微任务批处理的信封观测（`subscribeEnvelopes`）；平台子类只提供 `doFetch` 传输环节。`InProcessApiClient` 以 `toFetchHandler(api)` 为基础，仍是同构接点：它运行完整的协议序列化与校验路径而不经过网络，供需要该路径的调用方和载体测试使用。产品的 `dsh --profile headless` 是直连 core 的入口，不挂载本包。
+`AbstractApiClient` 持有全部协议不变量：签发 rpcId、包装／解包信封、Zod 解析、SSE 帧解码、一元请求超时，以及按微任务批处理的信封观测（`subscribeEnvelopes`）；平台子类只提供 `doFetch` 传输环节。`InProcessApiClient` 以 `toFetchHandler(api)` 为基础，仍是同构接点：它运行完整的协议序列化与校验路径而不经过网络，供需要该路径的调用方和载体测试使用。浏览器端签发的每一个 rpcId 都来自 `randomUuid`（同时以 `@deepseek-ai/dsh-host-apiproxy/random-uuid` 导出，供其他浏览器界面复用，例如草稿附件 id）：浏览器载体也会运行在不安全来源上--经局域网或 Tailnet 地址的普通 HTTP--那里 `crypto.randomUUID` 并不存在，因此 id 由 `crypto.getRandomValues` 组装，而该 API 不安全来源同样提供。产品的 `dsh --profile headless` 是直连 core 的入口，不挂载本包。
 
 ## 模型体验
 

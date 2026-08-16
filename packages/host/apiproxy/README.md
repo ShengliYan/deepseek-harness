@@ -62,7 +62,7 @@ The `settings.*`, `credentials.*`, and `llm.*` domains are the configuration-pag
 
 ## Carrier layer (`/client` + root)
 
-`AbstractApiClient` holds every protocol invariant — rpcId minting, envelope wrap/unwrap, zod parsing, SSE frame decoding, unary timeout, microtask-batched envelope observation (`subscribeEnvelopes`) — while platform subclasses supply only the `doFetch` transport aspect. `InProcessApiClient` over `toFetchHandler(api)` remains the isomorphic point for callers and carrier tests that need the full wire serialization/validation path without a network. Product `dsh --profile headless` is a direct core entry point and does not mount this package.
+`AbstractApiClient` holds every protocol invariant — rpcId minting, envelope wrap/unwrap, zod parsing, SSE frame decoding, unary timeout, microtask-batched envelope observation (`subscribeEnvelopes`) — while platform subclasses supply only the `doFetch` transport aspect. `InProcessApiClient` over `toFetchHandler(api)` remains the isomorphic point for callers and carrier tests that need the full wire serialization/validation path without a network. Every browser-minted rpcId comes from `randomUuid` (exported as `@deepseek-ai/dsh-host-apiproxy/random-uuid` for other browser surfaces, such as draft-attachment ids): the browser carrier also runs on insecure origins - plain HTTP over LAN or Tailnet addresses - where `crypto.randomUUID` is undefined, so ids assemble from `crypto.getRandomValues`, which insecure origins do expose. Product `dsh --profile headless` is a direct core entry point and does not mount this package.
 
 ## Model Experience
 

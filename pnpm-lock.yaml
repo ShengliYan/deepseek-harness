@@ -1782,6 +1782,9 @@ importers:
 
   packages/client/ui-conversation:
     dependencies:
+      '@deepseek-ai/dsh-host-apiproxy':
+        specifier: workspace:^
+        version: link:../../host/apiproxy
       '@deepseek-ai/dsh-settings':
         specifier: workspace:^
         version: link:../../settings/settings

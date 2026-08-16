@@ -1,4 +1,13 @@
-/** Browser-safe UUID generation for client-side wire correlation. */
+/**
+ * Secure-context-free UUID generation for wire correlation.
+ *
+ * `crypto.randomUUID` exists only on secure origins (HTTPS or localhost), but
+ * the browser UI is routinely served over plain HTTP on a LAN or Tailnet
+ * address, where the property is undefined and every RPC would throw at mint
+ * time. `crypto.getRandomValues` carries no secure-context requirement, so
+ * the RFC 4122 version 4 form is assembled from it.
+ * @module @deepseek-ai/dsh-host-apiproxy/random-uuid
+ */
 
 /**
  * Generate an RFC 4122 version 4 UUID without requiring a secure context.

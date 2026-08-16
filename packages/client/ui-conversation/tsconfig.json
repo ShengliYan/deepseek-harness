@@ -75,6 +75,9 @@
       "path": "../../settings/settings"
     },
     {
+      "path": "../../host/apiproxy"
+    },
+    {
       "path": "../../runtime-diagnostics/invariants"
     },
     {
