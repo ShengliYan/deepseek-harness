@@ -458,6 +458,13 @@
       config:
         apiKeyEnv: DEEPSEEK_API_KEY
 
+    # Ark (火山方舟) is a dormant alternative search route: it registers a
+    # provider but mounts no config, so a deployment that prefers Ark sets
+    # `web.searchProvider: ark-official` and supplies a `web-search-ark`
+    # settings section (or a baseURL/model/apiKeyEnv here) to activate it.
+    - id: web-search-ark
+      name: '@deepseek-ai/dsh-web-search-ark'
+
     - id: web-fetch-http
       name: '@deepseek-ai/dsh-web-fetch-http'
 
