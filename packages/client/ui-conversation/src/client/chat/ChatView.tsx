@@ -145,9 +145,18 @@ function TurnStatus({ startTime, t }: {
  */
 export function ChatView({
   useSession, useSessions, useStore, renderSlot, sessionId, openFile, loadOlder, loadImage, inspectCall, chatScroll, forkAt,
-  fileMentions, t,
+  rewindAt, openVersion, consumeVersionJump, fileMentions, t,
 }: ChatViewSlotProps) {
   const order = useSession(s => s.chat.order)
+  // Version-jump landing: the switcher records (target, turn) before opening
+  // the other version; this view consumes it once the seeded prefix rendered
+  // (turn numbers are shared across versions), then clears it.
+  const jumpTurn = consumeVersionJump(sessionId)
+  useEffect(() => {
+    if (jumpTurn === undefined) return
+    const target = listRef.current?.querySelector(`[data-chat-turn="${jumpTurn}"]`)
+    target?.scrollIntoView({ block: 'center' })
+  }, [jumpTurn])
   const nodeStore = useSession(s => s.chat.nodes)
   const timeline = useSession(s => s.chat.timeline)
   const inbox = useSession(s => s.queue)
@@ -389,6 +398,8 @@ export function ChatView({
               openFile={openFile}
               inspectCall={inspectCall}
               forkAt={forkAt}
+              rewindAt={rewindAt}
+              openVersion={openVersion}
               loadImage={loadImage}
               fileMentions={fileMentions}
               renderSlot={renderSlot}

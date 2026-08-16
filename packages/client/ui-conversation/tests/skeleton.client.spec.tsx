@@ -311,10 +311,12 @@ describe('ConversationRoot resident composer', () => {
     fireEvent.keyDown(box, { key: 'Enter' })
     expect(b.sink).toHaveBeenCalledWith('ordinary revised', [], 'queue')
     expect((b.view.getByRole('button', { name: 'Child' }) as HTMLButtonElement).disabled).toBe(true)
-    expect(b.view.queryByText('Root')).toBeNull()
+    // Fork lineage joins the header: a child with a parentId shows its
+    // source crumb even without a subagent origin.
+    expect((b.view.getByRole('button', { name: 'Root' }) as HTMLButtonElement).disabled).toBe(false)
   })
 
-  it('shows hierarchy only for subagents and opens their ordinary owner', () => {
+  it('shows hierarchy for fork and subagent lineage and opens the owner', () => {
     const b = mount(conversationSnapshot(), undefined, undefined, { summaryOrigin: 'subagent' })
     const root = b.view.getByRole('button', { name: 'Root' })
     expect((b.view.getByRole('button', { name: 'Child' }) as HTMLButtonElement).disabled).toBe(true)

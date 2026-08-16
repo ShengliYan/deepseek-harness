@@ -34,6 +34,7 @@ import { todoDockEntry } from './skeleton/TodoPanel.tsx'
 import { queueDockEntry } from './queue/QueueDock.tsx'
 import { ConversationRoot } from './skeleton/ConversationRoot.tsx'
 import { ConversationSession, ConversationSessionHeader } from './skeleton/ConversationSession.tsx'
+import { SessionVersionPager, type SessionVersionPagerInjected } from './skeleton/SessionVersionPager.tsx'
 import { DetailsPanel } from './skeleton/DetailsPanel.tsx'
 import { en, NS, zh, type ConversationKey } from './locales.ts'
 import { registerConversationNodes } from './conversation-nodes/register.ts'
@@ -149,6 +150,10 @@ export function apply(ctx: Context): void {
   // width reflow when the tab ring remounts the view. Deliberately not
   // persisted: a fresh page load keeps the open-jump-to-bottom default.
   const chatScrollPositions = new Map<SessionId, ChatScrollPosition>()
+  // Pending version jumps: (target session, shared turn) recorded by the
+  // question-level version switch before opening the target; ChatView
+  // consumes and clears its own entry once the seeded prefix renders.
+  const pendingVersionJumps = new Map<SessionId, number>()
 
   const viewTabs = (): ViewTab[] => {
     const tabs: ViewTab[] = []
@@ -267,6 +272,21 @@ export function apply(ctx: Context): void {
       open: (id) => { sessions.open(id) },
     }),
   }, ConversationSessionHeader)
+
+  // The session version pager: a `‹ n/m ›` control over the fork lineage.
+  // Registered against the header's own actions list through the inject
+  // form so declaration order never matters; the open callback rides the
+  // runtime navigation owner.
+  ctx.slots.inject(
+    'conversation.session.header.actions',
+    () => ctx.slots.register({
+      name: 'conversation.session.header.actions',
+      id: 'version-pager',
+      order: -10,
+      locale: NS,
+      inject: (): SessionVersionPagerInjected => ({ open: (id) => { sessions.open(id) } }),
+    }, SessionVersionPager),
+  )
 
   // The default composer body: its own single slot inside the composer
   // chain's fallback. Public machine surface arrives via the
@@ -420,6 +440,28 @@ export function apply(ctx: Context): void {
             .catch(() => {
               // Fork or child-rename failure keeps the source view untouched.
             })
+        },
+        rewindAt: (seq, text) => {
+          sessions.fork({ sessionId, atSeq: seq, rewind: true, increaseTitle: true })
+            .then((childId) => {
+              sessions.open(childId)
+              // Prefill the child's composer with the original question text
+              // for editing; the child seeds only the turns before the anchor.
+              inputHub.shell(childId).setDraft(text)
+            })
+            .catch(() => {
+              // Fork or child-rename failure keeps the source view untouched.
+            })
+        },
+        openVersion: (target, turn) => {
+          pendingVersionJumps.set(target, turn)
+          sessions.open(target)
+        },
+        consumeVersionJump: (target) => {
+          const turn = pendingVersionJumps.get(target)
+          if (turn === undefined) return undefined
+          pendingVersionJumps.delete(target)
+          return turn
         },
       }
     },

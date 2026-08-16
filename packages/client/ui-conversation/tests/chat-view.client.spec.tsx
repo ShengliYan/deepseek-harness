@@ -162,6 +162,12 @@ function makeHarness(init?: Partial<ConversationSnapshot>) {
     read: () => savedScroll,
   }
   const forkAt = vi.fn()
+  const rewindAt = vi.fn<(seq: number, text: string) => void>()
+  const openVersion = vi.fn<(target: SessionId, turn: number) => void>()
+  let pendingJump: number | undefined
+  const consumeVersionJump = vi.fn<(target: SessionId) => number | undefined>(
+    () => pendingJump, // read-only stub; jump tests set pendingJump directly
+  )
   // Selection rides the REAL chat store (same construction path as
   // production; the view reads it through the PropsStore useStore share).
   const chat = createChatStore().create()
@@ -287,6 +293,9 @@ function makeHarness(init?: Partial<ConversationSnapshot>) {
     inspectCall,
     chatScroll,
     forkAt,
+    rewindAt,
+    openVersion,
+    consumeVersionJump,
     // Absent-service default; mention tests override with a real resolver.
     fileMentions: () => undefined,
     // Mirrors the real lookup chain (conversation namespace, then common).
@@ -295,7 +304,7 @@ function makeHarness(init?: Partial<ConversationSnapshot>) {
   const setSelection = (next: SelectionTarget | null): void => { chat.actions.select(next) }
   return {
     set, ChatView, props, openDetails, openFile, loadOlder, inspectCall,
-    chatScroll, forkAt, setSelection, toolOwners,
+    chatScroll, forkAt, rewindAt, openVersion, consumeVersionJump, setSelection, toolOwners,
   }
 }
 
@@ -476,7 +485,7 @@ describe('ChatView', () => {
     expect(pendingBubble).not.toBeNull()
     fireEvent.click(within(pendingBubble as HTMLElement).getByRole('button', { name: '复制' }))
     expect(writeText).toHaveBeenCalledWith('interrupt now')
-    expect(within(pendingBubble as HTMLElement).queryByRole('button', { name: '在新对话中分支' })).toBeNull()
+    expect(within(pendingBubble as HTMLElement).queryByRole('button', { name: '从此处回退，在新会话中继续' })).toBeNull()
     expect(view.getByRole('status').compareDocumentPosition(view.getByText('interrupt now'))
       & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
 
@@ -500,14 +509,14 @@ describe('ChatView', () => {
     // carries a branch action.
     expect(view.getAllByRole('button', { name: '复制' })).toHaveLength(1)
     const durableBubble = view.getByText('interrupt now').closest('[class*="userRow"]') as HTMLElement
-    expect(within(durableBubble).queryByRole('button', { name: '在新对话中分支' })).toBeNull()
+    expect(within(durableBubble).queryByRole('button', { name: '从此处回退，在新会话中继续' })).toBeNull()
 
     act(() => {
       h.set({ running: false, turnEnds: new Map([[1, 3]]) })
     })
     // The Turn Tail belongs to the closed Turn, independently of a later
     // steering bubble's placement in the Chat list.
-    const branchButtons = view.getAllByRole('button', { name: '在新对话中分支' })
+    const branchButtons = view.getAllByRole('button', { name: '从此处回退，在新会话中继续' })
     expect(branchButtons).toHaveLength(1)
     expect(branchButtons[0]!.getAttribute('aria-disabled')).toBeNull()
     fireEvent.click(branchButtons[0]!)
@@ -621,11 +630,16 @@ describe('ChatView', () => {
       turnEnds: new Map([[1, 4], [2, 6]]),
     })
     const view = render(<h.ChatView {...h.props} />)
-    // Branch renders only under assistant answers; user bubbles keep copy alone.
+    // Branch renders only under assistant answers; user bubbles keep copy
+    // plus the rewind affordance.
     expect(view.getAllByRole('button', { name: '复制' })).toHaveLength(4)
-    const branchButtons = view.getAllByRole('button', { name: '在新对话中分支' })
+    const branchButtons = view.getAllByRole('button', { name: '从此处回退，在新会话中继续' })
     expect(branchButtons).toHaveLength(2)
     expect(branchButtons.map(button => button.getAttribute('aria-disabled'))).toEqual([null, null])
+    const rewindButtons = view.getAllByRole('button', { name: '从此处回退并编辑' })
+    expect(rewindButtons).toHaveLength(2)
+    fireEvent.click(rewindButtons[0] as HTMLButtonElement)
+    expect(h.rewindAt).toHaveBeenCalledWith(1, 'hi')
   })
 
   it('withholds assistant IconActions while the turn is still running', () => {
@@ -734,7 +748,7 @@ describe('ChatView', () => {
     })
     const view = render(<h.ChatView {...h.props} />)
     // The user bubble offers no branch; the settled answer's is live.
-    const buttons = view.getAllByRole('button', { name: '在新对话中分支' })
+    const buttons = view.getAllByRole('button', { name: '从此处回退，在新会话中继续' })
     expect(buttons).toHaveLength(1)
     expect(buttons[0]!.getAttribute('aria-disabled')).toBeNull()
     fireEvent.click(buttons[0]!)
@@ -757,7 +771,7 @@ describe('ChatView', () => {
     }
     const h = makeHarness({ chat })
     const view = render(<h.ChatView {...h.props} />)
-    const branch = view.getByRole('button', { name: '在新对话中分支' })
+    const branch = view.getByRole('button', { name: '从此处回退，在新会话中继续' })
     expect(branch.getAttribute('aria-disabled')).toBe('true')
     fireEvent.click(branch)
     expect(h.forkAt).not.toHaveBeenCalled()
@@ -774,7 +788,7 @@ describe('ChatView', () => {
     })
     const view = render(<h.ChatView {...h.props} />)
     expect(view.getAllByRole('button', { name: '复制' })).toHaveLength(2)
-    const buttons = view.getAllByRole('button', { name: '在新对话中分支' })
+    const buttons = view.getAllByRole('button', { name: '从此处回退，在新会话中继续' })
     expect(buttons).toHaveLength(1)
     expect(buttons[0]!.getAttribute('aria-disabled')).toBe('true')
     fireEvent.click(buttons[0]!)

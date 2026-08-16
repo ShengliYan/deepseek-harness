@@ -15,7 +15,8 @@ export type ConversationSessionProps = ConversationSessionSlotProps
 /** Full props composed from the strict session header contract. */
 export type ConversationSessionHeaderProps = ConversationSessionHeaderSlotProps
 
-interface Breadcrumb {
+/** One ancestry breadcrumb row: a session id and its display title. */
+export interface Breadcrumb {
   readonly id: SessionId
   readonly displayTitle: string
 }
@@ -29,7 +30,17 @@ function resolveActiveView(tabs: readonly ViewTab[], selectedId: string | null):
     ?? tabs.find(view => view.id === DEFAULT_VIEW_ID)
 }
 
-function deriveAncestry(list: SessionListState, id: SessionId): readonly Breadcrumb[] {
+/**
+ * Walk the current session's ancestry toward its root through `parentId`,
+ * oldest first, current session last. `parentId` carries both fork and
+ * subagent lineage (the wire `parentSessionId` passthrough), so a fork child
+ * shows its source session as a clickable crumb; roots and orphans degrade
+ * to the single current crumb, and a cycle terminates.
+ * @param list - the live session list snapshot.
+ * @param id - the session whose chain is derived.
+ * @returns breadcrumb rows, current session last.
+ */
+export function deriveAncestry(list: SessionListState, id: SessionId): readonly Breadcrumb[] {
   const chain: Breadcrumb[] = []
   const seen = new Set<SessionId>()
   let cursor: SessionId | undefined = id
@@ -39,7 +50,6 @@ function deriveAncestry(list: SessionListState, id: SessionId): readonly Breadcr
     const summary: SessionSummary | undefined = list.byId[cursor]
     if (summary === undefined) break
     chain.unshift({ id: summary.id, displayTitle: summary.displayTitle })
-    if (summary.origin !== 'subagent') break
     cursor = summary.parentId
   }
   return chain

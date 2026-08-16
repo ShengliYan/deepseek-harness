@@ -361,6 +361,13 @@ export interface ChatNodeOwnerProps {
   openFile: (path: string) => void
   inspectCall: (callId: CallId) => void
   forkAt: (seq: number) => void
+  /**
+   * Rewind: fork at the completed turn strictly BEFORE the message `seq`,
+   * open the child, and prefill its composer with the original message text.
+   */
+  rewindAt: (seq: number, text: string) => void
+  /** Open another version of this conversation and jump to the shared turn. */
+  openVersion: (target: SessionId, turn: number) => void
   /** Resolve a session-authorized historical image for inline display. */
   loadImage: (attachment: ImageAttachmentRef) => Promise<string>
   fileMentions: (owner: TurnTailOwnerProps) => MarkdownFileMentions | undefined
@@ -698,6 +705,12 @@ export interface ChatViewInjected {
   }
   /** Fork through the completed turn ending at the eligible message `seq`, then open the child. */
   forkAt: (seq: number) => void
+  /** Rewind through the turn before the message `seq`, open the child, and prefill its composer with `text`. */
+  rewindAt: (seq: number, text: string) => void
+  /** Open another version and record a pending jump to the shared `turn`. */
+  openVersion: (target: SessionId, turn: number) => void
+  /** Read-and-clear the pending version jump for this session, if any. */
+  consumeVersionJump: (sessionId: SessionId) => number | undefined
   /**
    * Prose file-mention vocabulary for one closing message, from the optional
    * {@link ChatFileMentions} service (resolved lazily per call, so composing

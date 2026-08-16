@@ -578,20 +578,23 @@ export class SessionManager {
    * @returns the fork result (the child session id).
    */
   async fork(
-    opts: { sessionId: SessionId; atSeq?: number },
+    opts: { sessionId: SessionId; atSeq?: number; rewind?: boolean },
   ): Promise<RpcResult<{ sessionId: SessionId }>> {
     try {
       const source = this.summaries.find(s => s.sessionId === opts.sessionId)
       const { result } = await this.api.sessions.fork({
         sessionId: opts.sessionId,
         ...opts.atSeq === undefined ? {} : { atSeq: opts.atSeq },
+        ...opts.rewind === undefined ? {} : { rewind: opts.rewind },
       })
       const childId = result.ok
         ? result.value.sessionId
         : workspaceAttachSessionId(result.error)
       if (childId !== undefined) {
         this.recordMutation({ kind: 'upsert', summary: {
-          sessionId: childId, updatedAt: Date.now(), running: false, blank: false,
+          sessionId: childId, updatedAt: Date.now(), running: false,
+          // Host-derived: an empty rewind child is blank until its first turn.
+          blank: result.ok ? (result.value.blank ?? false) : false,
           parentSessionId: opts.sessionId,
           ...(source?.cwd !== undefined ? { cwd: source.cwd } : {}),
         } })

@@ -359,7 +359,7 @@ describe('workspace browser rows', () => {
     expect(onRename).toHaveBeenCalledWith(node.id, 'One')
     expect(onOpen).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: '会话“One”的操作' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: '分叉会话' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '回退到上一轮（新会话）' }))
     expect(onFork).toHaveBeenCalledWith(node.id)
     // Archive dispatches without opening the session.
     fireEvent.click(screen.getByRole('button', { name: '会话“One”的操作' }))

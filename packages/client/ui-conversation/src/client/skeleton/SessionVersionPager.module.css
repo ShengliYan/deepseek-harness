@@ -1,0 +1,39 @@
+/* Header version pager: two 22px arrow chips around a tabular counter, the
+   same caption scale as the sibling header actions. */
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.arrow {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.arrow:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.arrow:disabled {
+  color: var(--dsw-alias-label-dimmed);
+  cursor: default;
+}
+
+.counter {
+  min-width: 34px;
+  text-align: center;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+}

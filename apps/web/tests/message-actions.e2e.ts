@@ -112,7 +112,7 @@ describe('web e2e: message IconActions and clocks on settled history', () => {
     const copyButtons = page.getByRole('button', { name: 'Copy' })
     await expect.poll(() => copyButtons.count(), { timeout: 10_000 }).toBeGreaterThanOrEqual(4)
     await copyButtons.first().focus()
-    const branchButtons = page.getByRole('button', { name: 'Branch into a new conversation' })
+    const branchButtons = page.getByRole('button', { name: 'Rewind here - continue in a new conversation' })
     await expect.poll(() => branchButtons.count(), { timeout: 5_000 }).toBe(2)
     await expect.poll(
       () => branchButtons.evaluateAll(buttons => buttons.map(button => button.getAttribute('aria-disabled'))),
@@ -121,7 +121,8 @@ describe('web e2e: message IconActions and clocks on settled history', () => {
     await branchButtons.first().focus()
     await expect.poll(() => page.getByRole('tooltip').textContent(), { timeout: 5_000 })
       .toBe('Available only on the last message of a completed turn')
-    await expect.poll(() => page.getByRole('button', { name: 'Edit' }).count(), { timeout: 5_000 }).toBe(0)
+    const rewindButtons = page.getByRole('button', { name: 'Rewind and edit from here' })
+    await expect.poll(() => rewindButtons.count(), { timeout: 5_000 }).toBe(2)
   }, 60_000)
 
   it.skipIf(MODE === 'record')('matches the conversation aria golden with IconActions and clocks', async () => {
@@ -140,7 +141,7 @@ describe('web e2e: message IconActions and clocks on settled history', () => {
   it.skipIf(MODE === 'record')('forks through the settled-message and session-row actions', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-message-fork'))
     // The last message action belongs to the completed second-turn assistant.
-    await page.getByRole('button', { name: 'Branch into a new conversation' }).last().click()
+    await page.getByRole('button', { name: 'Rewind here - continue in a new conversation' }).last().click()
     await expect.poll(
       () => scaffold.ctx.agents.list().find(agent => agent.session.header.parentSession === SessionId(SEED_ID)),
       { timeout: 15_000 },
@@ -164,7 +165,7 @@ describe('web e2e: message IconActions and clocks on settled history', () => {
     const buttonBox = await actionButton.boundingBox()
     if (buttonBox === null) throw new Error('fork source row action has no layout box')
     await page.mouse.click(buttonBox.x + buttonBox.width / 2, buttonBox.y + buttonBox.height / 2)
-    await page.getByRole('menuitem', { name: 'Fork session' }).click()
+    await page.getByRole('menuitem', { name: 'Rewind to the previous turn (new session)' }).click()
     await expect.poll(
       () => scaffold.ctx.agents.list().filter(agent => agent.session.header.parentSession !== undefined).length,
       { timeout: 15_000 },
@@ -189,6 +190,55 @@ describe('web e2e: message IconActions and clocks on settled history', () => {
       scaffold.workspaceCwd,
     )
     await compareOrRefreshGolden(FORK_EXPECTED, tree, MODE)
+  })
+
+  it('shows fork lineage in the header breadcrumb and navigates back to the source', async () => {
+    // The previous test leaves the newest fork child open, whose header must
+    // carry its full source chain as clickable crumbs before the child itself.
+    const crumbs = page.locator('nav[aria-label="Session hierarchy"]')
+    await expect.poll(() => crumbs.locator('button').count(), { timeout: 10_000 }).toBeGreaterThanOrEqual(2)
+    await expect.poll(
+      () => crumbs.locator('button').last().isDisabled(),
+      { timeout: 10_000 },
+    ).toBe(true)
+    await expect.poll(
+      () => crumbs.locator('button').last().textContent(),
+      { timeout: 10_000 },
+    ).toContain('Use the read tool twice')
+    const parentCrumb = crumbs.locator('button').nth(-2)
+    const parentTitle = (await parentCrumb.textContent()) ?? ''
+    await parentCrumb.click()
+    await expect.poll(
+      () => page.locator('[role="treeitem"][aria-selected="true"]').textContent(),
+      { timeout: 10_000 },
+    ).toContain(parentTitle)
+  })
+
+  it('rewinds from a user message into a prefilled child and pages between versions', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-message-rewind'))
+    // The open session carries the seeded two turns; rewind from the FIRST
+    // question, which cuts an empty prefix — the child opens with the
+    // original prompt prefilled in its composer.
+    const promptBubble = page.locator('[data-chat-flow-kind="user"]').first()
+    const rewindButton = promptBubble.getByRole('button', { name: 'Rewind and edit from here' })
+    await rewindButton.click()
+    const selectedRow = page.locator('[role="treeitem"][aria-selected="true"]')
+    await expect.poll(
+      () => selectedRow.textContent(),
+      { timeout: 15_000 },
+    ).toContain('Use the read tool twice')
+    await expect.poll(
+      () => page.locator('textarea').inputValue(),
+      { timeout: 10_000 },
+    ).toBe(PROMPT)
+    // The child is a pending rewind DRAFT: no version was committed yet, so
+    // neither the header pager nor the per-question switch may render (the
+    // source keeps reading 1/1 until the resubmitted turn lands; that flip
+    // is pinned by the package-level pager derivations).
+    await expect.poll(
+      () => page.locator('[data-session-versions], [data-question-versions]').count(),
+      { timeout: 10_000 },
+    ).toBe(0)
   })
 
   it.skipIf(MODE === 'record')('issued zero model calls and kept a closed inventory', async () => {
