@@ -155,7 +155,7 @@ describe('MessageItem arms', () => {
     )
     expect(screen.getByText('14:24')).toBeTruthy()
     expect(screen.getByRole('button', { name: '复制' })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: '在新对话中分支' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '从此处回退，在新会话中继续' })).toBeNull()
     expect(screen.queryByRole('button', { name: '编辑' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: '复制' }))
     expect(writeText).toHaveBeenCalledWith('hello bubble')
@@ -302,7 +302,7 @@ describe('MessageItem arms', () => {
     expect(view.getByText(/附加内容块/)).toBeTruthy()
     fireEvent.click(view.getByRole('button', { name: '复制' }))
     expect(writeText).toHaveBeenCalledWith('steer!')
-    expect(view.queryByRole('button', { name: '在新对话中分支' })).toBeNull()
+    expect(view.queryByRole('button', { name: '从此处回退，在新会话中继续' })).toBeNull()
   })
 
   it('context uses the Tool calls disclosure chrome and keeps its body collapsed by default', () => {

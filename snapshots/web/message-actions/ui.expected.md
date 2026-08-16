@@ -18,6 +18,8 @@
 - button "Copy":
   - img
 - tooltip "Copy"
+- button "Rewind and edit from here":
+  - img
 - button "Think The user wants me to read a.txt and b.txt, then reply with \"DONE\". Let me do both reads in parallel.":
   - img
   - img
@@ -29,7 +31,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation" [disabled]:
+- button "Rewind here - continue in a new conversation" [disabled]:
   - img
 - text: Available only on the last message of a completed turn 7/25 {{clock}} Ran for {{duration}} TTFT {{duration}} {{throughput}} tok/s
 - button "Read a.txt":
@@ -49,6 +51,8 @@
 - text: Stopped Now give the final answer. 7/25 {{clock}}
 - button "Copy":
   - img
+- button "Rewind and edit from here":
+  - img
 - paragraph: DONE
 - button "Copy":
   - img
@@ -56,7 +60,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here - continue in a new conversation":
   - img
 - text: 7/25 {{clock}} Ran for {{duration}}
 - textbox "Message or run a task... / commands, @ files or sessions"

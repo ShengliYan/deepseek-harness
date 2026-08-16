@@ -246,7 +246,7 @@ interface FixtureSessionApi {
     readonly agentPreset?: string
   }): Promise<ConnectionRpcResult<unknown>>
   rename(request: { readonly sessionId: SessionId; readonly title: string }): Promise<ConnectionRpcResult<unknown>>
-  fork(request: { readonly sessionId: SessionId; readonly atSeq?: number }): Promise<ConnectionRpcResult<unknown>>
+  fork(request: { readonly sessionId: SessionId; readonly atSeq?: number; readonly rewind?: boolean }): Promise<ConnectionRpcResult<unknown>>
   history(request: {
     readonly sessionId: SessionId
     readonly throughSeq?: number
@@ -2849,7 +2849,7 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
       return sessionOk({ title: normalized, seq: appended.seq })
     },
     fork: (request) => {
-      const { sessionId, atSeq } = request
+      const { sessionId, atSeq, rewind } = request
       const source = summaryOf(sessionId)
       if (source === undefined) {
         return sessionErr({
@@ -2860,14 +2860,22 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
       }
       const log = logs.get(sessionId) ?? []
       const lastSeq = log.at(-1)?.seq ?? -1
+      const anchorTurnStart = atSeq !== undefined
+        ? log.findLast(e => e.type === 'turn/start' && e.seq <= atSeq)
+        : undefined
       const anchoredBoundary = atSeq === undefined
         ? undefined
-        : log.find(e => e.type === 'turn/end' && e.seq >= atSeq)
+        : rewind === true
+          ? (anchorTurnStart === undefined
+            ? undefined
+            : log.findLast(e => e.type === 'turn/end' && e.seq < anchorTurnStart.seq))
+          : log.find(e => e.type === 'turn/end' && e.seq >= atSeq)
       const boundary = anchoredBoundary
           ?? (atSeq === undefined || atSeq > lastSeq
             ? log.findLast(e => e.type === 'turn/end')
             : undefined)
-      if (boundary === undefined) {
+      const emptyRewindChild = boundary === undefined && rewind === true && anchorTurnStart !== undefined
+      if (boundary === undefined && !emptyRewindChild) {
         return sessionErr({
           code: 'fork-unavailable',
           message: atSeq !== undefined && atSeq <= lastSeq
@@ -2876,10 +2884,10 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
           details: { sessionId },
         })
       }
-      let cut = boundary.seq + 1
+      let cut = boundary === undefined ? 0 : boundary.seq + 1
       while (cut < log.length && log[cut]?.type !== 'turn/start') cut++
       const child: FixtureSessionSummary = {
-        sessionId: sid(`fx-${nextSession++}`), updatedAt: Date.now(), running: false, blank: false,
+        sessionId: sid(`fx-${nextSession++}`), updatedAt: Date.now(), running: false, blank: cut === 0,
         parentSessionId: sessionId,
         ...source.cwd === undefined ? {} : { cwd: source.cwd },
       }
@@ -2892,7 +2900,7 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
         workspace.updatedAt = new Date().toISOString()
         emitWorkspace({ type: 'upsert', workspace: workspaceSnapshot(workspace) })
       }
-      return sessionOk({ sessionId: child.sessionId })
+      return sessionOk({ sessionId: child.sessionId, blank: cut === 0 })
     },
     history: async (request) => {
       const log = logs.get(request.sessionId) ?? []

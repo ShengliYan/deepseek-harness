@@ -15,6 +15,7 @@ import type { ToolCallId, SelectionTarget } from './store.ts'
 import type { ChatNode, ChatNodeKind } from './chat-nodes.ts'
 import type { ChatSnapshot, CommandNode, CompactionSummaryNode, ToolCallBlock } from './snapshot.ts'
 import type { TurnProcessSpec } from './turn-process.ts'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { TranscriptViewMode } from '../../chat-settings.ts'
 
 /** Selector hook over the current Conversation binding's Chat target. */
@@ -66,6 +67,10 @@ export interface ChatNodeOwnerProps {
   openFile: (path: string) => void
   inspectCall: (callId: ToolCallId) => void
   forkAt: (seq: number) => void
+  /** Rewind: fork before the message seq, open the child, and prefill its composer. */
+  rewindAt: (seq: number, text: string) => void
+  /** Open another version of this conversation and jump to the shared turn. */
+  openVersion: (target: SessionId, turn: number) => void
   renderMessageImages: RenderMessageImages
   fileMentions: (owner: TurnTailOwnerProps) => MarkdownFileMentions | undefined
   /** Turn-process state when this Node belongs to a projected Turn. */
@@ -124,6 +129,9 @@ export interface ChatViewInjected {
     read: () => ChatScrollPosition | null
   }
   forkAt: (seq: number) => void
+  rewindAt: (seq: number, text: string) => void
+  openVersion: (target: SessionId, turn: number) => void
+  consumeVersionJump: (target: SessionId) => number | undefined
   fileMentions: (owner: TurnTailOwnerProps) => MarkdownFileMentions | undefined
 }
 

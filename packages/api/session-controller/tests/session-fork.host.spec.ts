@@ -100,6 +100,48 @@ describe('sessions.fork', () => {
     await ctx.fiber.dispose()
   })
 
+  it('rewinds before the anchored turn: the child seeds only the completed prefix', async () => {
+    const ctx = await composed()
+    const source = liveAgent(ctx, 'session-rewind', 2)
+    // Turn 2's user message sits at seq 3; the rewind cut is turn 1's end.
+    const response = await remote(ctx).fork(request({ sessionId: source.id, atSeq: 3, rewind: true }))
+    expect(response.ok).toBe(true)
+    if (!response.ok) return
+    const child = ctx.sessions.get(response.value.sessionId)
+    expect(child?.events.map(event => event.type)).toEqual([
+      'turn/start', 'user/message', 'turn/end', 'session/end-seed',
+    ])
+    expect(child?.header.parentSession).toBe(source.id)
+    await ctx.fiber.dispose()
+  })
+
+  it('rewinds from the first turn into an empty child', async () => {
+    const ctx = await composed()
+    const source = liveAgent(ctx, 'session-rewind-empty', 2)
+    // Turn 1's user message sits at seq 1; nothing completed precedes it.
+    const response = await remote(ctx).fork(request({ sessionId: source.id, atSeq: 1, rewind: true }))
+    expect(response.ok).toBe(true)
+    if (!response.ok) return
+    const child = ctx.sessions.get(response.value.sessionId)
+    expect(child?.events.map(event => event.type)).toEqual(['session/end-seed'])
+    expect(child?.header.parentSession).toBe(source.id)
+    await ctx.fiber.dispose()
+  })
+
+  it('rewind without an anchor keeps the last-completed-turn shortcut', async () => {
+    const ctx = await composed()
+    const source = liveAgent(ctx, 'session-rewind-default', 2)
+    const response = await remote(ctx).fork(request({ sessionId: source.id, rewind: true }))
+    expect(response.ok).toBe(true)
+    if (!response.ok) return
+    const child = ctx.sessions.get(response.value.sessionId)
+    expect(child?.events.map(event => event.type)).toEqual([
+      'turn/start', 'user/message', 'turn/end',
+      'turn/start', 'user/message', 'turn/end', 'session/end-seed',
+    ])
+    await ctx.fiber.dispose()
+  })
+
   it('attaches a subagent fork to its nearest workspace-owning ancestor', async () => {
     const accounted: SessionId[] = []
     const attachSession = vi.fn<(sessionId: SessionId) => Promise<void>>()

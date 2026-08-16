@@ -3,6 +3,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type { SessionBinding } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { IConversation } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { BoundActions, ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { resolveWorkspacePath } from '@deepseek-ai/dsh-util-workspace-path'
@@ -80,6 +81,7 @@ export function apply(ctx: Context): void {
   const t = ctx.locale.bind(NS)
   const chatStore = createChatStore()
   const chatScrollPositions = new Map<SessionId, ChatScrollPosition>()
+  const pendingVersionJumps = new Map<SessionId, number>()
   const transcriptView = new TranscriptViewPolicy(
     ctx.settingsScope.bind<ChatSettings>({ namespace: CHAT_SETTINGS_NAMESPACE }),
   )
@@ -142,6 +144,29 @@ export function apply(ctx: Context): void {
               .catch(() => {
                 // Fork or child-title failure leaves the source view unchanged.
               })
+          },
+          rewindAt: (seq, text) => {
+            ctx.sessions.fork({ sessionId, atSeq: seq, rewind: true, increaseTitle: true })
+              .then((childId) => {
+                ctx.sessions.open(childId)
+                const scoped = ctx.sessions.scope(childId)
+                if (scoped === undefined) return
+                const conversation = scoped.get('conversation') as IConversation | undefined
+                conversation?.input.for(scoped).setDraft(text)
+              })
+              .catch(() => {
+                // Fork or child-title failure leaves the source view unchanged.
+              })
+          },
+          openVersion: (target, turn) => {
+            pendingVersionJumps.set(target, turn)
+            ctx.sessions.open(target)
+          },
+          consumeVersionJump: (target) => {
+            const turn = pendingVersionJumps.get(target)
+            if (turn === undefined) return undefined
+            pendingVersionJumps.delete(target)
+            return turn
           },
         }
       },

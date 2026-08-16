@@ -28,6 +28,7 @@ import { EnterBehaviorRow } from './settings/EnterBehaviorRow.tsx'
 import type { EnterBehaviorRowInjected } from './settings/EnterBehaviorRow.tsx'
 import { ConversationRoot } from './skeleton/ConversationRoot.tsx'
 import { ConversationSession, ConversationSessionHeader } from './skeleton/ConversationSession.tsx'
+import { SessionVersionPager, type SessionVersionPagerInjected } from './skeleton/SessionVersionPager.tsx'
 import { InputBar } from './skeleton/InputBar.tsx'
 import { todoDockEntry } from './skeleton/TodoPanel.tsx'
 import { en, NS, zh, type ConversationKey } from './locales.ts'
@@ -329,6 +330,17 @@ export function apply(ctx: Context): void {
     yield registerConversationHeader()
     yield registerComposerBar()
   })
+
+  ctx.slots.inject(
+    'conversation.session.header.actions',
+    () => ctx.slots.register({
+      name: 'conversation.session.header.actions',
+      id: 'version-pager',
+      order: -10,
+      locale: NS,
+      inject: (): SessionVersionPagerInjected => ({ open: (id) => { sessions.open(id) } }),
+    }, SessionVersionPager),
+  )
 
   ctx.plugin(ConversationController, { input: inputHub, blocks: composerBlocks })
   ctx.plugin(todoDockEntry)

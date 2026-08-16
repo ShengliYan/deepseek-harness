@@ -203,7 +203,7 @@ function TurnStatus({ startTime, t }: {
  */
 export function ChatView({
   useSession, useChat, useSessions, useStore, actions, renderSlot, sessionId, openFile, loadOlder, loadImage, openView, chatScroll, forkAt,
-  fileMentions, useTranscriptView, t,
+  rewindAt, openVersion, consumeVersionJump, fileMentions, useTranscriptView, t,
 }: ChatViewSlotProps) {
   const order = useChat(s => s.order)
   const nodeStore = useChat(s => s.nodes)
@@ -281,6 +281,15 @@ export function ChatView({
 
   const listRef = useRef<HTMLDivElement | null>(null)
   const columnRef = useRef<HTMLDivElement | null>(null)
+  // Version-jump landing: the switcher records (target, turn) before opening
+  // the other version; this view consumes it once the seeded prefix rendered
+  // (turn numbers are shared across versions), then clears it.
+  const jumpTurn = consumeVersionJump(sessionId)
+  useEffect(() => {
+    if (jumpTurn === undefined) return
+    const target = listRef.current?.querySelector(`[data-chat-turn="${String(jumpTurn)}"]`)
+    target?.scrollIntoView({ block: 'center' })
+  }, [jumpTurn])
   // A saved position starts disarmed; the first layout effect synchronously
   // restores it and normalizes a floor-clamped position back to following.
   const [atBottom, setAtBottom] = useState(() => chatScroll.read() === null)
@@ -607,6 +616,8 @@ export function ChatView({
               inspectCall={inspectCall}
               forkAt={forkAt}
               renderMessageImages={renderMessageImages}
+              rewindAt={rewindAt}
+              openVersion={openVersion}
               fileMentions={fileMentions}
               renderSlot={renderSlot}
               t={t}

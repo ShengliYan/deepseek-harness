@@ -592,28 +592,31 @@ export class SessionManager {
 
   /**
    * Contract session.fork; on success merge the child into summaries
-   * immediately (same synchronous-addressability guarantee as create). The
-   * child carries the source's history, so it is never blank; lineage rides
-   * parentSessionId so the list nests it under its source. A child published
-   * before Workspace attachment fails is also reconciled into the list.
-   * @param opts - source session and the optional seq anchoring the cut.
+   * immediately (same synchronous-addressability guarantee as create). Lineage
+   * rides parentSessionId so the list nests it under its source. A rewind child
+   * may be blank until its first turn lands. A child published before Workspace
+   * attachment fails is also reconciled into the list.
+   * @param opts - source session, optional seq anchoring the cut, and optional rewind.
    * @returns the fork result (the child session id).
    */
   async fork(
-    opts: { sessionId: SessionId; atSeq?: number },
-  ): Promise<ClientResult<{ sessionId: SessionId }>> {
+    opts: { sessionId: SessionId; atSeq?: number; rewind?: boolean },
+  ): Promise<ClientResult<{ sessionId: SessionId; blank?: boolean }>> {
     try {
       const source = this.summaries.find(s => s.sessionId === opts.sessionId)
       const result = toSessionResult(await this.remote.session.fork({
         sessionId: opts.sessionId,
         ...opts.atSeq === undefined ? {} : { atSeq: opts.atSeq },
+        ...opts.rewind === undefined ? {} : { rewind: opts.rewind },
       }))
       const childId = result.ok
         ? result.value.sessionId
         : workspaceAttachSessionId(result.error)
       if (childId !== undefined) {
         this.recordMutation({ kind: 'upsert', summary: {
-          sessionId: childId, updatedAt: Date.now(), running: false, blank: false,
+          sessionId: childId, updatedAt: Date.now(), running: false,
+          // Host-derived: an empty rewind child is blank until its first turn.
+          blank: result.ok ? (result.value.blank ?? false) : false,
           parentSessionId: opts.sessionId,
           ...(source?.cwd !== undefined ? { cwd: source.cwd } : {}),
         } })

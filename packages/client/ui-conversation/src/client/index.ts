@@ -43,6 +43,8 @@ export { ConversationEventRegistry } from './conversation/event-registry.ts'
 export { ConversationLocationIndex } from './conversation/location-index.ts'
 export type { ConversationLocationDataChange } from './conversation/location-index.ts'
 export { ConversationViewRegistry } from './conversation/view-registry.ts'
+export { deriveVersionPager } from './skeleton/SessionVersionPager.tsx'
+export type { VersionPagerState } from './skeleton/SessionVersionPager.tsx'
 
 export type { ConversationKey } from './locales.ts'
 export type {

@@ -8,6 +8,7 @@ import type { ModelRetryNode, TurnErrorNode, UserMessageNode } from '../contract
 import { CompactionItem } from './CompactionItem.tsx'
 import { ContextInjectionRow } from './ContextInjectionRow.tsx'
 import { MessageIconActions } from './MessageIconActions.tsx'
+import { QuestionVersionSwitch } from './QuestionVersionSwitch.tsx'
 import css from './MessageItem.module.css'
 
 type UserImage = Extract<UserMessageNode['content'][number], { type: 'image' }>
@@ -271,9 +272,12 @@ export function PendingSubmissionBubble({ submission, renderMessageImages, t }: 
 
 /** User and admitted-steering keyed Chat renderer. */
 export const UserMessageNodeView = memo(function UserMessageNodeView({
-  node, renderMessageImages, t,
+  node, renderMessageImages, rewindAt, openVersion, useSessions, sessionId, t,
 }: ChatNodeViewProps<'user' | 'steering'>) {
   const data = node.data
+  const turn = node.location.kind === 'turn' || node.location.kind === 'step'
+    ? node.location.turn.turn
+    : undefined
   return (
     <UserStyleBubble
       content={data.content}
@@ -286,6 +290,16 @@ export const UserMessageNodeView = memo(function UserMessageNodeView({
           time={data.time}
           clock="start"
           className={css.actions}
+          onRewind={() => { rewindAt(data.seq, text) }}
+          extraActions={turn !== undefined && node.kind === 'user' ? (
+            <QuestionVersionSwitch
+              sessionId={sessionId}
+              turn={turn}
+              useSessions={useSessions}
+              openVersion={openVersion}
+              t={t}
+            />
+          ) : undefined}
           t={t}
         />
       )}

@@ -306,11 +306,15 @@ export interface SessionRenameValue {
 export interface SessionForkRequest {
   readonly sessionId: SessionId
   readonly atSeq?: number
+  /** Cut before the anchor's turn; the child seeds only the completed prefix. */
+  readonly rewind?: boolean
 }
 
 /** Identity of a newly forked Session. */
 export interface SessionForkValue {
   readonly sessionId: SessionId
+  /** True when the child seed is empty (a first-turn rewind draft). */
+  readonly blank?: boolean
 }
 
 /** Session prompt request. */
