@@ -8,9 +8,12 @@
   "scripts": {
     "start": "electron .",
     "gen:icon": "node scripts/gen-icon.mjs",
-    "dist:mac": "node scripts/gen-icon.mjs && electron-builder --mac",
-    "dist:mac:arm64": "node scripts/gen-icon.mjs && electron-builder --mac --arm64",
-    "dist:mac:x64": "node scripts/gen-icon.mjs && electron-builder --mac --x64"
+    "stage:runtime": "node scripts/stage-runtime.mjs",
+    "dist:mac": "node scripts/require-app-not-running.mjs && node scripts/stage-runtime.mjs && node scripts/gen-icon.mjs && electron-builder --mac && node scripts/verify-bundle.mjs && node scripts/make-update-feed.mjs",
+    "dist:mac:arm64": "node scripts/require-app-not-running.mjs && node scripts/stage-runtime.mjs && node scripts/gen-icon.mjs && electron-builder --mac --arm64 && node scripts/verify-bundle.mjs && node scripts/make-update-feed.mjs",
+    "dist:mac:x64": "node scripts/require-app-not-running.mjs && node scripts/stage-runtime.mjs && node scripts/gen-icon.mjs && electron-builder --mac --x64 && node scripts/verify-bundle.mjs && node scripts/make-update-feed.mjs",
+    "feed:generate": "node scripts/make-update-feed.mjs",
+    "app:install": "node scripts/install-app.mjs"
   },
   "build": {
     "appId": "ai.deepseek.harness.desktop",
@@ -21,7 +24,35 @@
     },
     "files": [
       "main.js",
+      "preload.js",
+      "updater.js",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "build/update-config.json",
+        "to": "update-config.json"
+      },
+      {
+        "from": "build/build-id",
+        "to": "build-id"
+      },
+      {
+        "from": "runtime-stage",
+        "to": "deepseek",
+        "filter": [
+          "**/*",
+          "!node_modules/**"
+        ]
+      },
+      {
+        "from": "runtime-stage/node_modules",
+        "to": "deepseek/node_modules"
+      },
+      {
+        "from": "../../dsh-standalone/node",
+        "to": "node"
+      }
     ],
     "mac": {
       "icon": "build/icon.png",
@@ -30,6 +61,7 @@
         "dmg",
         "zip"
       ],
+      "identity": null,
       "hardenedRuntime": true,
       "gatekeeperAssess": false
     },
@@ -40,6 +72,7 @@
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",
     "electron": "^33.4.11",
-    "electron-builder": "^26.0.12"
+    "electron-builder": "^26.0.12",
+    "pnpm": "^11.7.0"
   }
 }
