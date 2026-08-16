@@ -153,19 +153,14 @@
   justify-content: center;
 }
 
-.older button {
-  border: none;
+/* Busy pill shown while a scroll-triggered older page is in flight; the
+   former Load-earlier button is gone — arrival at the top is the gesture. */
+.olderBusy {
   border-radius: 14px;
   padding: 4px 12px;
   font-size: 12px;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--dsw-alias-label-tertiary);
   background: var(--dsw-alias-interactive-bg-hover-solid);
-  cursor: pointer;
-}
-
-.older button:disabled {
-  cursor: default;
-  opacity: 0.6;
 }
 
 /* Back-to-bottom: zero-height sticky slot so the control does not extend

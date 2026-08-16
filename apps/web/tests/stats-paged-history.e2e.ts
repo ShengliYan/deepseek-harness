@@ -110,9 +110,21 @@ describe('web e2e: whole-session stats survive history paging', () => {
     const strip = page.getByText(FULL_COUNTS, { exact: false }).locator('..')
     const stripBeforePaging = await strip.textContent()
 
-    // 加载更早: prepending the older page must not move ANY strip figure —
-    // counts, wall times, or token groups.
-    await page.getByRole('button', { name: 'Load earlier' }).click()
+    // 加载更早 by arrival: scrolling the transcript to the very top pulls
+    // the older page automatically (no button) and must not move ANY strip
+    // figure — counts, wall times, or token groups.
+    const host = page.locator('[data-conversation-scroll]')
+    const box = await host.boundingBox()
+    if (box === null) throw new Error('conversation scrollport has no layout box')
+    await page.mouse.move(box.x + box.width / 2, box.y + Math.min(140, box.height / 3))
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      if (await host.evaluate(el => el.scrollTop) <= 1) break
+      await page.mouse.wheel(0, -2_400)
+      await page.evaluate(() => new Promise<void>((resolve) => {
+        requestAnimationFrame(() => { requestAnimationFrame(() => { resolve() }) })
+      }))
+    }
+    await expect.poll(() => host.evaluate(el => el.scrollTop), { timeout: 10_000 }).toBeLessThanOrEqual(1)
     await expect.poll(() => page.getByText('m1', { exact: true }).count(), { timeout: 10_000 }).toBe(1)
     expect(await strip.textContent()).toBe(stripBeforePaging)
     // With the whole log loaded, the window mounts one turn-tail footer per

@@ -804,6 +804,23 @@ async function conversationTurns(page: Page): Promise<number> {
   return stableCount(page.locator('[data-chat-flow-key^="9:turn-tail"]'), count => count > 0)
 }
 
+/** Reader arrival at the history start: wheeling the transcript to the very
+ * top is itself the paging gesture (the Load-earlier button is gone). */
+async function wheelToHistoryStart(page: Page): Promise<void> {
+  const host = page.locator('[data-conversation-scroll]')
+  const box = await host.boundingBox()
+  if (box === null) throw new Error('conversation scrollport has no layout box')
+  await page.mouse.move(box.x + box.width / 2, box.y + Math.min(140, box.height / 3))
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    if (await host.evaluate(el => el.scrollTop) <= 1) break
+    await page.mouse.wheel(0, -2_400)
+    await page.evaluate(() => new Promise<void>((resolve) => {
+      requestAnimationFrame(() => { requestAnimationFrame(() => { resolve() }) })
+    }))
+  }
+  await expect.poll(() => host.evaluate(el => el.scrollTop), { timeout: 10_000 }).toBeLessThanOrEqual(1)
+}
+
 function retainedDelta(
   before: RetainedBrowserState,
   after: RetainedBrowserState,
@@ -1250,7 +1267,7 @@ describe('manual web performance: complex workspace and history', () => {
       while (turns < LONG_HISTORY_TURNS) {
         const previousTurns = turns
         const older = await measure(cdp, async () => {
-          await page.getByRole('button', { name: 'Load earlier', exact: true }).click()
+          await wheelToHistoryStart(page)
           await expect.poll(() => conversationTurns(page), { timeout: 30_000 })
             .toBeGreaterThan(previousTurns)
           return conversationTurns(page)
@@ -1352,7 +1369,7 @@ describe('manual web performance: complex workspace and history', () => {
       while (turns < LONG_HISTORY_TURNS) {
         const previousTurns = turns
         const older = await measure(cdp, async () => {
-          await world.page.getByRole('button', { name: 'Load earlier', exact: true }).click()
+          await wheelToHistoryStart(world.page)
           await expect.poll(() => conversationTurns(world.page), { timeout: 30_000 })
             .toBeGreaterThan(previousTurns)
           return conversationTurns(world.page)

@@ -1,5 +1,8 @@
 // An enclosing `[data-conversation-scroll]` owns scrolling when present;
 // otherwise this view owns it. Each row subscribes to one stable node key.
+// History paging is gesture-driven: reader scroll reaching the very top
+// pulls the next older page, and a loaded window shorter than its
+// scrollport pages itself until it overflows.
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type {
@@ -15,6 +18,8 @@ import { formatRunDuration } from './message-chrome.ts'
 import css from './ChatView.module.css'
 
 const FOLLOW_THRESHOLD = 24
+/** Reader scroll distance from the very top that pages the next older window. */
+const PAGING_TRIGGER = 2
 
 /** Active column host when present; otherwise the view-local scroller. */
 function scrollerOf(from: HTMLElement): HTMLElement {
@@ -299,7 +304,7 @@ export function ChatView({
   )
   /** Last position delivered or written on the main thread. */
   const observedTopRef = useRef(0)
-  /** Paging anchor: semantic row/position at click, updated by reader scrolls
+  /** Paging anchor: semantic row/position at trigger, updated by reader scrolls
    * while the request is pending and restored after the prepend lands. */
   const anchorRef = useRef<PagingAnchor | null>(null)
   const firstSeqRef = useRef<number | null>(null)
@@ -387,6 +392,20 @@ export function ChatView({
     /* v8 ignore next -- ref-null guard: React attaches the ref before layout effects run. */
     if (local === null) return
     const el = scrollerOf(local)
+    // A loaded window shorter than its scrollport has no top edge to scroll
+    // toward: pull older pages until the flow overflows, so the scroll-triggered
+    // paging always has a gesture to hang on. Reentry is safe — the session
+    // dedupes concurrent requests — and the clientHeight guard keeps jsdom
+    // (zero metrics) from firing it in unit tests.
+    if (
+      openState === 'open'
+      && hasMore
+      && !loadingOlder
+      && el.clientHeight > 0
+      && el.scrollHeight - el.clientHeight < 1
+    ) {
+      loadOlder()
+    }
     // Open completed: jump to the bottom once — unless a scroll position
     // survives from a previous mount (view-tab switch away and back), which
     // is restored instead of snapping the reader back to the floor.
@@ -400,6 +419,11 @@ export function ChatView({
         const row = anchorElement(local, saved.anchorKey)
         if (row !== null) el.scrollTop += flowTop(row, el) - saved.anchorTop
         observedTopRef.current = el.scrollTop
+        // A position restored flush with the history start cannot gain a new
+        // scroll event by overscrolling (the position cannot move), so a
+        // still-paginated window pages itself here instead of waiting for a
+        // gesture that will never arrive.
+        if (el.scrollTop <= PAGING_TRIGGER && hasMore && !loadingOlder) loadOlderAnchored()
         const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_THRESHOLD + 1
         atBottomRef.current = isAtBottom
         setAtBottom(isAtBottom)
@@ -423,6 +447,10 @@ export function ChatView({
       const row = anchorElement(local, anchor.key)
       if (row !== null) el.scrollTop += flowTop(row, el) - anchor.top
       observedTopRef.current = el.scrollTop
+      // A prepend too short to move the restored position off the top edge
+      // (a page of near-zero-height rows) leaves the reader parked on it with
+      // no overscroll events to come: chain the next page instead.
+      if (el.scrollTop <= PAGING_TRIGGER && hasMore && !loadingOlder) loadOlderAnchored()
       firstSeqRef.current = firstSeq
       /* v8 ignore next -- ?? arm: a prepend adds nodes, so the flow list here is never empty. */
       lastKeyRef.current = lastKey
@@ -462,6 +490,13 @@ export function ChatView({
     // the current ownership state.
     const floor = Math.max(0, el.scrollHeight - el.clientHeight)
     const movedByReader = Math.abs(el.scrollTop - Math.min(observedTopRef.current, floor)) > 0.5
+    // Arrival at the history start pages automatically: reader input reaching
+    // the very top pulls the next older page through the same anchored path
+    // the removed button used, so walking history backwards never needs a
+    // click. Reentry is safe — the session dedupes concurrent requests.
+    if (movedByReader && el.scrollTop <= PAGING_TRIGGER && hasMore && !loadingOlder && openState === 'open') {
+      loadOlderAnchored()
+    }
     const isAtBottom = movedByReader
       ? floor - el.scrollTop <= FOLLOW_THRESHOLD + 1
       : atBottomRef.current
@@ -534,13 +569,19 @@ export function ChatView({
 
   // A failed/empty page leaves the head unchanged. Once the request leaves
   // its busy state there is no future prepend for the saved anchor to own.
+  // Detection rides the true→false transition, not raw idleness: the scroll
+  // that armed the anchor can commit a render (bottom ownership) before the
+  // session's busy flag reaches the snapshot, and clearing the anchor there
+  // would let the arriving page land unanchored.
+  const loadingOlderWasRef = useRef(false)
   useEffect(() => {
-    if (!loadingOlder) anchorRef.current = null
+    if (loadingOlderWasRef.current && !loadingOlder) anchorRef.current = null
+    loadingOlderWasRef.current = loadingOlder
   }, [loadingOlder])
 
   const loadOlderAnchored = (): void => {
     const local = listRef.current
-    /* v8 ignore next -- ref-null guard: the paging button renders inside the list tree. */
+    /* v8 ignore next -- ref-null guard: the trigger paths fire only while the list tree is mounted. */
     if (local !== null) {
       const el = scrollerOf(local)
       const row = pagingAnchor(local, el)
@@ -594,11 +635,9 @@ export function ChatView({
               {t('chat.loadError', { message: openError.message, code: openError.code })}
             </div>
           )}
-          {hasMore && (
-            <div className={css.older}>
-              <button type="button" disabled={loadingOlder} onClick={loadOlderAnchored}>
-                {loadingOlder ? t('loading') : t('chat.loadOlder')}
-              </button>
+          {hasMore && loadingOlder && (
+            <div className={css.older} role="status" aria-live="polite">
+              <span className={css.olderBusy}>{t('loading')}</span>
             </div>
           )}
           {order.map(nodeKey => (
