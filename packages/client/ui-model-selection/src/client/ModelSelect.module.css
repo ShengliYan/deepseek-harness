@@ -39,6 +39,42 @@
   cursor: default;
 }
 
+/* Desktop-only glyph: hidden outside the narrow-container query so the wide
+   trigger keeps its text-only look pixel-for-pixel. Declared BEFORE the
+   container query: same specificity, later rule wins on narrow rows. */
+.triggerIcon {
+  display: none;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* Narrow composer: the row (attach + modes + model + send) starts squeezing
+   labels at the 460px cut shared with PermissionSelect. The model chip
+   collapses to icon + chevron (matching the sibling permission chip) instead
+   of ellipsizing a name: the fish glyph plus the open-rotation chevron is
+   the whole affordance, the full label stays on aria-label/title and in the
+   menu. The container is the composer row (InputBar .row); the query is
+   anonymous for the same reason as the sibling rule. */
+@container (max-width: 460px) {
+  .trigger {
+    max-width: none;
+    padding: 0 5px;
+  }
+
+  .triggerIcon {
+    display: inline-flex;
+  }
+
+  .triggerLabel,
+  .triggerEffort {
+    display: none;
+  }
+}
+
 .triggerLabel {
   min-width: 0;
   overflow: hidden;
@@ -87,6 +123,20 @@
      styles/scrollbar.css for the rebinding contract). */
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+/* Phone menu width: the menu is right-anchored to the trigger, so its left
+   edge extends leftward. The 100vw clamp above ignores the sidebar column
+   (the conversation column clips at its own left edge), so on a narrow row
+   the cap follows the container instead: 97px covers everything to the
+   trigger's right (context meter 28 + send 34 + gaps) plus the menu's own
+   padding/border, with the 240px design cap still winning when space allows.
+   A wider sibling set only makes the cap more conservative, never clipped.
+   Must stay AFTER the base .menu rule (same specificity, later wins). */
+@container (max-width: 460px) {
+  .menu {
+    width: min(240px, calc(100cqw - 97px));
+  }
 }
 
 .status,
