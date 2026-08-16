@@ -18,14 +18,19 @@ if (!match) throw new Error(`whale path not found in ${faviconPath}`)
 const whale = match[1]
 
 const SIZE = 1024
-const ROUNDED_RADIUS = Math.round(SIZE * 0.2237)
+// Transparent margin around the rounded canvas so the opaque artwork does not
+// touch the canvas edges. Without it macOS renders the icon at full Dock slot
+// size, making it look larger than standard icons that carry transparent padding.
+const MARGIN = Math.round(SIZE * 0.1)
+const CANVAS = SIZE - MARGIN * 2
+const ROUNDED_RADIUS = Math.round(CANVAS * 0.2237)
 const WHALE_WIDTH = 50
-const scale = SIZE * 0.62 / WHALE_WIDTH
+const scale = CANVAS * 0.62 / WHALE_WIDTH
 const offset = (SIZE - WHALE_WIDTH * scale) / 2
 
 const wrapper = `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">
-  <rect x="0" y="0" width="${SIZE}" height="${SIZE}" rx="${ROUNDED_RADIUS}" fill="#ffffff"/>
-  <rect x="0" y="-${SIZE}" width="${SIZE}" height="${SIZE}" rx="${ROUNDED_RADIUS}" fill="#ffffff"/>
+  <rect x="${MARGIN}" y="${MARGIN}" width="${CANVAS}" height="${CANVAS}" rx="${ROUNDED_RADIUS}" fill="#ffffff"/>
+  <rect x="${MARGIN}" y="${MARGIN - SIZE}" width="${CANVAS}" height="${CANVAS}" rx="${ROUNDED_RADIUS}" fill="#ffffff"/>
   <g transform="translate(${offset} ${offset}) scale(${scale})">
     <path d="${whale}" fill="#000000"/>
   </g>
