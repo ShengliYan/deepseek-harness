@@ -1,0 +1,5 @@
+{
+  "_comment": "feedUrl 是 app 检查更新的地址。本地开发循环用 file:// 指向 dist/latest.json（重新打包后运行中的 app 会自动提示更新）；zipBaseUrl 仅在需要 http 分发时填写（留空或非 http 则生成本地相对路径 feed）。",
+  "feedUrl": "file:///Users/ysl/Desktop/vibe/deepseek-harness/macos-app/dist/latest.json",
+  "zipBaseUrl": ""
+}

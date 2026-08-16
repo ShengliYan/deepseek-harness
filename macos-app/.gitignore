@@ -1,4 +1,6 @@
 node_modules/
 dist/
+runtime-stage/
 build/*
 !build/icon.png
+!build/update-config.json
