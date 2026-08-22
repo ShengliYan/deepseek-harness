@@ -38,6 +38,10 @@
         "to": "build-id"
       },
       {
+        "from": "build/git-rev",
+        "to": "git-rev"
+      },
+      {
         "from": "runtime-stage",
         "to": "deepseek",
         "filter": [

@@ -51,6 +51,14 @@ function readOwnBuildId() {
   }
 }
 
+function readGitRev() {
+  try {
+    return fs.readFileSync(path.join(process.resourcesPath, 'git-rev'), 'utf8').trim() || null
+  } catch {
+    return null // dev runs and tarball builds without a stamped hash
+  }
+}
+
 function broadcastUpdateState() {
   const state = {
     available: updateFeed !== null,
@@ -538,6 +546,24 @@ if (!gotLock) {
   })
 
   app.whenReady().then(async () => {
+    // About panel carries the build stamp; packaged builds read the staged
+    // hash, dev runs fall back to the checkout's HEAD.
+    let gitRev = readGitRev()
+    if (!gitRev && !app.isPackaged) {
+      try {
+        gitRev = require('node:child_process')
+          .execSync('git rev-parse --short HEAD', { cwd: path.join(__dirname, '..'), encoding: 'utf8' })
+          .trim() || null
+      } catch {
+        gitRev = null
+      }
+    }
+    if (gitRev) {
+      app.setAboutPanelOptions({
+        applicationVersion: app.getVersion(),
+        credits: `构建 ${gitRev}`,
+      })
+    }
     installMenu()
     const repoPath = resolveRepoPath()
     if (!repoPath) {

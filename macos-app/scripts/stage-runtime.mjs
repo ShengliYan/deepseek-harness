@@ -19,7 +19,7 @@
  * Requires node on PATH (or NODE_BIN) and a built repo (step 1).
  */
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, readlinkSync, realpathSync, rmSync, symlinkSync, writeFileSync, statSync } from 'node:fs'
-import { spawn, spawnSync } from 'node:child_process'
+import { execSync, spawn, spawnSync } from 'node:child_process'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import http from 'node:http'
@@ -459,4 +459,12 @@ const version = JSON.parse(readFileSync(join(macosAppDir, 'package.json'), 'utf8
 const buildId = `${version}.${Date.now().toString(36)}`
 mkdirSync(join(macosAppDir, 'build'), { recursive: true })
 writeFileSync(join(macosAppDir, 'build', 'build-id'), `${buildId}\n`)
+// Short commit hash for the About panel (the sidebar no longer shows it).
+let gitRev = ''
+try {
+  gitRev = execSync('git rev-parse --short HEAD', { cwd: repoRoot, encoding: 'utf8' }).trim()
+} catch {
+  // tarball builds without a .git dir ship without the About-panel hash.
+}
+writeFileSync(join(macosAppDir, 'build', 'git-rev'), `${gitRev}\n`)
 log('done', `${stageDir} (buildId ${buildId})`)
