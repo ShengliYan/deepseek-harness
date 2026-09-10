@@ -4,3 +4,4 @@ runtime-stage/
 build/*
 !build/icon.png
 !build/update-config.json
+!build/entitlements.mac.plist

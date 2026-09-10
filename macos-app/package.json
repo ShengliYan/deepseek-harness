@@ -9,9 +9,9 @@
     "start": "electron .",
     "gen:icon": "node scripts/gen-icon.mjs",
     "stage:runtime": "node scripts/stage-runtime.mjs",
-    "dist:mac": "node scripts/require-app-not-running.mjs && node scripts/stage-runtime.mjs && node scripts/gen-icon.mjs && electron-builder --mac && node scripts/verify-bundle.mjs && node scripts/make-update-feed.mjs",
-    "dist:mac:arm64": "node scripts/require-app-not-running.mjs && node scripts/stage-runtime.mjs && node scripts/gen-icon.mjs && electron-builder --mac --arm64 && node scripts/verify-bundle.mjs && node scripts/make-update-feed.mjs",
-    "dist:mac:x64": "node scripts/require-app-not-running.mjs && node scripts/stage-runtime.mjs && node scripts/gen-icon.mjs && electron-builder --mac --x64 && node scripts/verify-bundle.mjs && node scripts/make-update-feed.mjs",
+    "dist:mac": "node scripts/require-app-not-running.mjs && node scripts/stage-runtime.mjs && node scripts/gen-icon.mjs && node scripts/electron-builder.mjs --mac && node scripts/verify-bundle.mjs && node scripts/make-update-feed.mjs",
+    "dist:mac:arm64": "node scripts/require-app-not-running.mjs && node scripts/stage-runtime.mjs && node scripts/gen-icon.mjs && node scripts/electron-builder.mjs --mac --arm64 && node scripts/verify-bundle.mjs --arch arm64 && node scripts/make-update-feed.mjs --arch arm64",
+    "dist:mac:x64": "node scripts/require-app-not-running.mjs && node scripts/stage-runtime.mjs && node scripts/gen-icon.mjs && node scripts/electron-builder.mjs --mac --x64 && node scripts/verify-bundle.mjs --arch x64 && node scripts/make-update-feed.mjs --arch x64",
     "feed:generate": "node scripts/make-update-feed.mjs",
     "app:install": "node scripts/install-app.mjs"
   },
@@ -30,7 +30,7 @@
     ],
     "extraResources": [
       {
-        "from": "build/update-config.json",
+        "from": "build/update-config.packaged.json",
         "to": "update-config.json"
       },
       {
@@ -66,12 +66,18 @@
         "zip"
       ],
       "identity": null,
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "extendInfo": {
+        "LSEnvironment": {
+          "ELECTRON_DISABLE_GPU": "1"
+        }
+      }
     },
     "dmg": {
       "sign": false
-    }
+    },
+    "afterPack": "./scripts/after-pack.cjs"
   },
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",

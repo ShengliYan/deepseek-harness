@@ -11,10 +11,54 @@ const READY_TIMEOUT_MS = 120_000
 
 const APP_NAME = 'DeepSeek Harness'
 
+const { homedir } = require('node:os')
+const MAIN_LOG = path.join(homedir(), 'Library', 'Logs', 'dsh-macos-app-main.log')
+function mainLog(message) {
+  try {
+    fs.appendFileSync(MAIN_LOG, `${new Date().toISOString()} ${message}\n`)
+  } catch {
+    // logging must never take down the shell
+  }
+}
+process.on('exit', (code) => { mainLog(`exit code=${code}`) })
+process.on('uncaughtException', (error) => {
+  mainLog(`uncaughtException ${error && error.stack ? error.stack : error}`)
+})
+process.on('unhandledRejection', (reason) => {
+  mainLog(`unhandledRejection ${reason && reason.stack ? reason.stack : reason}`)
+})
+
+// GPU helpers still spawn before ready unless Chromium is told in-process.
+// Unsigned + renamed helpers otherwise SIGTRAP on macOS 15 (`codeSigningID`
+// stays "Electron Helper") and the shell exits, leaving `dsh web` orphaned.
+delete process.env.ELECTRON_RUN_AS_NODE
+// Packaged launches inherit the caller's environment (`open` from a smoke
+// shell, Cursor, CI). `DSH_HOME` then points at a throwaway `/tmp/dsh-*`
+// directory, so the GUI misses `~/.dsh/settings.yaml` and the welcome
+// acknowledgement cannot persist. Dev `electron .` still forwards DSH_HOME.
+if (app.isPackaged) {
+  delete process.env.DSH_HOME
+  delete process.env.DSH_SMOKE_PORT
+}
+app.commandLine.appendSwitch('disable-gpu')
+app.commandLine.appendSwitch('disable-gpu-compositing')
+app.commandLine.appendSwitch('in-process-gpu')
+// Unsigned helpers still SIGTRAP under Chromium's sandbox on macOS 15.
+if (app.isPackaged && process.platform === 'darwin') {
+  app.commandLine.appendSwitch('no-sandbox')
+  app.commandLine.appendSwitch('disable-gpu-sandbox')
+}
+app.disableHardwareAcceleration()
+
 let mainWindow = null
 let serverProcess = null
+/** Pid of a leftover bundled `dsh web` we attached to instead of spawning. */
+let adoptedServerPid = null
 let serverLogPath = null
 let quitting = false
+/** `dsh web: http://127.0.0.1:PORT/?token=…` printed after Connection boots. */
+let launchAppUrl = null
+let serverOutput = ''
 
 // ---------------------------------------------------------------------------
 // Self-rolled auto-update (unsigned-friendly). Two feed styles, both driven
@@ -273,11 +317,12 @@ function findNode() {
   return null
 }
 
-function isServerReady() {
+function isPortOccupied() {
   return new Promise(resolve => {
     const request = http.get({ host: '127.0.0.1', port: PORT, path: '/', timeout: 1_500 }, res => {
       res.resume()
-      resolve(res.statusCode >= 200 && res.statusCode < 300)
+      // 401 is still a live listener: browser-token auth rejects a bare GET /.
+      resolve(true)
     })
     request.on('error', () => resolve(false))
     request.on('timeout', () => {
@@ -287,8 +332,80 @@ function isServerReady() {
   })
 }
 
+function rememberLaunchUrl(chunk) {
+  serverOutput += chunk.toString()
+  if (launchAppUrl) return
+  const match = serverOutput.match(new RegExp(
+    `dsh web: (http://127\\.0\\.0\\.1:${PORT}/\\?token=[A-Za-z0-9_-]+)`,
+  ))
+  if (match) launchAppUrl = match[1]
+}
+
+function cookieHeader(setCookie) {
+  const list = setCookie == null ? [] : Array.isArray(setCookie) ? setCookie : [setCookie]
+  return list.map(entry => String(entry).split(';')[0].trim()).filter(Boolean).join('; ')
+}
+
+function fetchPage(pathname, headers = {}) {
+  return new Promise(resolve => {
+    const request = http.get({
+      host: '127.0.0.1', port: PORT, path: pathname, timeout: 1_500, headers,
+    }, res => {
+      let body = ''
+      res.on('data', chunk => { body += chunk })
+      res.on('end', () => resolve({
+        ok: res.statusCode >= 200 && res.statusCode < 300,
+        status: res.statusCode,
+        location: res.headers.location,
+        cookie: cookieHeader(res.headers['set-cookie']),
+        body,
+      }))
+    })
+    request.on('error', () => resolve({ ok: false, status: 0, location: undefined, cookie: '', body: '' }))
+    request.on('timeout', () => {
+      request.destroy()
+      resolve({ ok: false, status: 0, location: undefined, cookie: '', body: '' })
+    })
+  })
+}
+
+async function fetchAuthenticatedIndex() {
+  if (!launchAppUrl) return { ok: false, body: '' }
+  const url = new URL(launchAppUrl)
+  const first = await fetchPage(`${url.pathname}${url.search}`)
+  if (first.status === 303 && first.location !== undefined) {
+    const location = first.location.startsWith('http')
+      ? new URL(first.location).pathname
+      : first.location
+    const headers = first.cookie !== '' ? { cookie: first.cookie } : {}
+    return fetchPage(location, headers)
+  }
+  return first
+}
+
+function findPortListenerPid() {
+  const result = spawnSync('lsof', ['-nP', `-iTCP:${PORT}`, '-sTCP:LISTEN', '-t'], { encoding: 'utf8' })
+  const pid = Number((result.stdout || '').trim().split(/\n/)[0])
+  return Number.isInteger(pid) && pid > 0 ? pid : null
+}
+
+function processCommand(pid) {
+  const result = spawnSync('ps', ['-p', String(pid), '-o', 'command='], { encoding: 'utf8' })
+  return (result.stdout || '').trim()
+}
+
+/** True when the listener is this app's bundled `dsh web`, including an orphan after Electron quit. */
+function isBundledWebServer(command) {
+  if (!command.includes('lib/bin.js web')) return false
+  if (app.isPackaged) {
+    return command.includes(`${path.sep}DeepSeek Harness.app${path.sep}`)
+      && command.includes(`${path.sep}Resources${path.sep}node${path.sep}bin${path.sep}node`)
+  }
+  return true
+}
+
 // The dsh webserver starts serving the index page BEFORE the server boot
-// completes, and window.__DSH_BOOT__ (the client entry graph the page carries)
+// completes, and __DSH_BOOT__ (the client entry graph the page carries)
 // is populated incrementally as plugin entries load. A page fetched mid-boot
 // gets a PARTIAL manifest, and the web UI then fails to activate everything
 // that waits on the wire roots ("Failed to load plugins"). So "HTTP 200" is
@@ -296,38 +413,20 @@ function isServerReady() {
 // the manifest revision to stop changing (entries no longer arriving) before
 // the window may load.
 function checkServerReady(lastManifestRev) {
-  return new Promise(resolve => {
-    const request = http.get({ host: '127.0.0.1', port: PORT, path: '/', timeout: 1_500 }, res => {
-      let body = ''
-      res.on('data', chunk => { body += chunk })
-      res.on('end', () => {
-        if (!(res.statusCode >= 200 && res.statusCode < 300)) {
-          resolve({ ready: false, rev: null })
-          return
-        }
-        const match = body.match(/window\.__DSH_BOOT__ = (\{[^<]+\})<\/script>/)
-        if (!match) {
-          resolve({ ready: false, rev: null })
-          return
-        }
-        let manifest
-        try {
-          manifest = JSON.parse(match[1])
-        } catch {
-          resolve({ ready: false, rev: null })
-          return
-        }
-        const entries = Array.isArray(manifest.entries) ? manifest.entries : []
-        const hasConnection = entries.some(entry => entry && entry.id === '@deepseek-ai/dsh-client-connection')
-        const rev = typeof manifest.rev === 'string' ? manifest.rev : null
-        resolve({ ready: hasConnection && rev !== null && rev === lastManifestRev, rev })
-      })
-    })
-    request.on('error', () => resolve({ ready: false, rev: null }))
-    request.on('timeout', () => {
-      request.destroy()
-      resolve({ ready: false, rev: null })
-    })
+  return fetchAuthenticatedIndex().then(({ ok, body }) => {
+    if (!ok) return { ready: false, rev: null }
+    const match = body.match(/(?:window\.__DSH_BOOT__|globalThis\["__DSH_BOOT__"\]) = (\{[^<]+\})<\/script>/)
+    if (!match) return { ready: false, rev: null }
+    let manifest
+    try {
+      manifest = JSON.parse(match[1])
+    } catch {
+      return { ready: false, rev: null }
+    }
+    const entries = Array.isArray(manifest.entries) ? manifest.entries : []
+    const hasConnection = entries.some(entry => entry && entry.id === '@deepseek-ai/dsh-client-connection')
+    const rev = typeof manifest.rev === 'string' ? manifest.rev : null
+    return { ready: hasConnection && rev !== null && rev === lastManifestRev, rev }
   })
 }
 
@@ -335,6 +434,10 @@ async function waitForServer(timeoutMs) {
   const deadline = Date.now() + timeoutMs
   let lastRev = null
   while (Date.now() < deadline) {
+    if (!launchAppUrl) {
+      await new Promise(resolve => setTimeout(resolve, 500))
+      continue
+    }
     const result = await checkServerReady(lastRev)
     if (result.ready) return true
     if (result.rev !== null) lastRev = result.rev
@@ -354,24 +457,49 @@ function startServer(repoPath, nodeBin, logPath) {
       fn(value)
     }
 
-    isServerReady().then(inUse => {
+    isPortOccupied().then(inUse => {
       if (inUse) {
+        // Electron detaches `dsh web`; if the shell quit without killing it,
+        // the next launch must attach that process instead of erroring, and
+        // must not open a second browser tab.
+        const pid = findPortListenerPid()
+        const command = pid === null ? '' : processCommand(pid)
+        if (pid !== null && isBundledWebServer(command)) {
+          adoptedServerPid = pid
+          waitForServer(8_000).then(ready => {
+            if (ready) finish(resolve)
+            else finish(reject, new Error(`端口 ${PORT} 上已有未就绪的 dsh 服务 (pid ${pid})。请先结束该进程，或设置 DSH_PORT 使用其它端口。`))
+          })
+          return
+        }
         finish(reject, new Error(`端口 ${PORT} 已被占用，可能已有 dsh 实例在运行。请先关闭它，或设置 DSH_PORT 使用其它端口。`))
         return
       }
       // Built layout (app bundle): plain-node launch of lib/bin.js. Source
       // layout (dev checkout without a build): tsx source launch.
+      // `--no-open`: the Electron window is the UI; default `dsh web` also
+      // hands the URL to Safari/Chrome, which is what "jumped to the webpage"
+      // looks like from this wrapper.
       const builtEntry = path.join(repoPath, 'lib', 'bin.js')
       const args = fs.existsSync(builtEntry)
-        ? ['lib/bin.js', 'web', '--port', String(PORT)]
-        : ['--import', 'tsx/esm', 'apps/cli/src/bin.ts', 'web', '--port', String(PORT)]
+        ? ['lib/bin.js', 'web', '--port', String(PORT), '--no-open']
+        : ['--import', 'tsx/esm', 'apps/cli/src/bin.ts', 'web', '--port', String(PORT), '--no-open']
+      const env = { ...process.env, DSH_PROFILE: 'web' }
+      if (app.isPackaged) {
+        delete env.DSH_HOME
+        delete env.DSH_SMOKE_PORT
+      }
       serverProcess = spawn(nodeBin, args, {
         cwd: repoPath,
         detached: true,
-        env: { ...process.env, DSH_PROFILE: 'web' },
+        env,
         stdio: ['ignore', 'pipe', 'pipe'],
       })
       const logStream = fs.createWriteStream(logPath, { flags: 'a' })
+      launchAppUrl = null
+      serverOutput = ''
+      serverProcess.stdout.on('data', rememberLaunchUrl)
+      serverProcess.stderr.on('data', rememberLaunchUrl)
       serverProcess.stdout.pipe(logStream)
       serverProcess.stderr.pipe(logStream)
       serverProcess.on('error', error => {
@@ -396,25 +524,34 @@ function startServer(repoPath, nodeBin, logPath) {
   })
 }
 
-function stopServer() {
-  if (!serverProcess) return
-  const pid = serverProcess.pid
-  serverProcess = null
+function signalPid(pid, signal) {
   try {
-    process.kill(-pid, 'SIGTERM')
+    process.kill(-pid, signal)
   } catch {
-    return
+    // process group may already be gone
   }
+  try {
+    process.kill(pid, signal)
+  } catch {
+    // already gone
+  }
+}
+
+function stopServer() {
+  const pids = []
+  if (serverProcess && serverProcess.pid) pids.push(serverProcess.pid)
+  if (adoptedServerPid) pids.push(adoptedServerPid)
+  serverProcess = null
+  adoptedServerPid = null
+  if (pids.length === 0) return
+  for (const pid of pids) signalPid(pid, 'SIGTERM')
   setTimeout(() => {
-    try {
-      process.kill(-pid, 'SIGKILL')
-    } catch {
-      // already gone
-    }
+    for (const pid of pids) signalPid(pid, 'SIGKILL')
   }, 3_000)
 }
 
 function createWindow() {
+  if (mainWindow && !mainWindow.isDestroyed()) return
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 840,
@@ -426,11 +563,32 @@ function createWindow() {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
+      sandbox: !(app.isPackaged && process.platform === 'darwin'),
       preload: path.join(__dirname, 'preload.js'),
     },
   })
-  mainWindow.loadURL(`http://127.0.0.1:${PORT}`)
+  // Show a window before the server is ready. Waiting on startServer with no
+  // window left this process looking "not running" while `dsh web` detached.
+  mainWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(
+    '<!doctype html><meta charset="utf-8"><title>DeepSeek Harness</title>'
+    + '<body style="margin:0;font:15px/1.5 system-ui,-apple-system,sans-serif;color:#444;display:flex;min-height:100vh;align-items:center;justify-content:center">正在启动…</body>',
+  )}`)
+  const appOrigin = `http://127.0.0.1:${PORT}`
+  const isAppUrl = url => {
+    try {
+      const parsed = new URL(url)
+      return parsed.origin === new URL(appOrigin).origin
+    } catch {
+      return false
+    }
+  }
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (url.startsWith('data:')) return
+    if (!isAppUrl(url)) event.preventDefault()
+  })
+  mainWindow.webContents.on('will-redirect', (event, url) => {
+    if (!isAppUrl(url)) event.preventDefault()
+  })
   // Fallback for Cmd+Q: if the native menu key equivalent for Quit is ever not
   // registered (role-accelerator edge cases), still honor the shortcut at the
   // input layer. When the menu DOES consume it, this handler never sees the
@@ -446,6 +604,8 @@ function createWindow() {
   let repairReloads = 0
   const MAX_REPAIR_RELOADS = 2
   mainWindow.webContents.on('did-finish-load', () => {
+    const current = mainWindow.webContents.getURL()
+    if (!current.startsWith(appOrigin)) return
     if (bootCheckDone) return
     bootCheckDone = true
     setTimeout(async () => {
@@ -469,7 +629,10 @@ function createWindow() {
       }
     }, 3_000)
   })
+  // Same-origin window.open must not fall through to Safari: that is the
+  // "Mac app still pops the webpage" path. Only off-origin http(s) leaves.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (isAppUrl(url) || url.startsWith('data:')) return { action: 'deny' }
     if (url.startsWith('http:') || url.startsWith('https:')) {
       shell.openExternal(url)
     }
@@ -478,6 +641,11 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null
   })
+}
+
+function loadAppUrl() {
+  if (!mainWindow || mainWindow.isDestroyed()) createWindow()
+  mainWindow.loadURL(launchAppUrl || `http://127.0.0.1:${PORT}`)
 }
 
 function installMenu() {
@@ -565,6 +733,7 @@ if (!gotLock) {
       })
     }
     installMenu()
+    mainLog(`ready version=${app.getVersion()} packaged=${app.isPackaged}`)
     const repoPath = resolveRepoPath()
     if (!repoPath) {
       dialog.showErrorBox(
@@ -582,10 +751,20 @@ if (!gotLock) {
       app.quit()
       return
     }
+    createWindow()
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow()
+        if (serverProcess || adoptedServerPid) loadAppUrl()
+      }
+    })
     serverLogPath = path.join(app.getPath('userData'), 'server.log')
     try {
+      mainLog(`startServer repo=${repoPath}`)
       await startServer(repoPath, nodeBin, serverLogPath)
+      mainLog('startServer ready')
     } catch (error) {
+      mainLog(`startServer failed ${error && error.stack ? error.stack : error}`)
       dialog.showErrorBox(`${APP_NAME} 启动失败`, String(error.message || error))
       app.quit()
       return
@@ -600,10 +779,7 @@ if (!gotLock) {
         }
       }
     }
-    createWindow()
-    app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow()
-    })
+    loadAppUrl()
     // Update polling: silent checks right after boot, on window focus (a
     // fresh dist build usually lands while this app is in the background),
     // and every 30s. Errors stay quiet on purpose (the feed is rebuilt in

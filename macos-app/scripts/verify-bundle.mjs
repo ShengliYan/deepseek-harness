@@ -6,7 +6,9 @@
  * with ERR_MODULE_NOT_FOUND.
  *
  * Checks:
- *   1. app.asar contains the Electron main, preload, and updater modules
+ *   1. app.asar contains the Electron main, preload, and updater modules, and
+ *      packed main.js parses (`node --check`); a SyntaxError there exits before
+ *      any boot log and leaves the user in a leftover browser tab
  *   2. Resources/node/bin/node exists (the bundled runtime; without it the
  *      shell silently falls back to whatever Node the target Mac happens to
  *      have, or none)
@@ -17,15 +19,17 @@
  *      staged server with a throwaway DSH_HOME and serves the web index with
  *      a complete boot manifest
  */
-import { listPackage } from '@electron/asar'
-import { spawn } from 'node:child_process'
-import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { extractFile, listPackage } from '@electron/asar'
+import { spawn, spawnSync } from 'node:child_process'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import http from 'node:http'
+import { findMacDistRoot, pathInside, resolveMacArch } from './dist-layout.mjs'
+import { fetchAuthenticatedIndex, indexLooksReady, parseWebLaunchUrl } from './web-auth-fetch.mjs'
 
 const macosAppDir = import.meta.dirname
-const appRoot = join(macosAppDir, '..', 'dist', 'mac-arm64')
+const distDir = join(macosAppDir, '..', 'dist')
+const appRoot = findMacDistRoot(distDir, resolveMacArch())
 const args = new Set(process.argv.slice(2))
 const smokePort = Number(process.env.DSH_SMOKE_PORT) || 3299
 
@@ -48,6 +52,18 @@ const asarFiles = new Set(listPackage(appAsar))
 for (const required of ['/main.js', '/preload.js', '/updater.js', '/package.json']) {
   if (!asarFiles.has(required)) fail(`app.asar missing required module: ${required}`)
 }
+const packedMain = extractFile(appAsar, 'main.js')
+const mainCheckDir = mkdtempSync(join(tmpdir(), 'dsh-main-check-'))
+const packedMainPath = join(mainCheckDir, 'main.js')
+try {
+  writeFileSync(packedMainPath, packedMain)
+  const syntax = spawnSync(process.execPath, ['--check', packedMainPath], { encoding: 'utf8' })
+  if (syntax.status !== 0) {
+    fail(`packed main.js failed node --check:\n${syntax.stderr || syntax.stdout}`)
+  }
+} finally {
+  rmSync(mainCheckDir, { recursive: true, force: true })
+}
 console.log('verify-bundle: Electron modules ok')
 
 if (!existsSync(nodeBin)) fail(`bundled Node missing: ${nodeBin}`)
@@ -56,7 +72,13 @@ if (!existsSync(join(deepseek, 'lib', 'bin.js'))) fail(`staged lib/bin.js missin
 if (!existsSync(join(appBundle, 'Contents', 'Resources', 'build-id'))) {
   fail('Resources/build-id missing; build via the dist scripts (stage-runtime stamps it) or the update badge can never detect new builds')
 }
-console.log(`verify-bundle: app ${appBundle} (buildId ${readFileSync(join(appBundle, 'Contents', 'Resources', 'build-id'), 'utf8').trim()})`)
+const appVersionFile = join(macosAppDir, '..', 'build', 'app-version')
+const expectedVersion = existsSync(appVersionFile) ? readFileSync(appVersionFile, 'utf8').trim() : ''
+const infoPlist = readFileSync(join(appBundle, 'Contents', 'Info.plist'), 'utf8')
+if (expectedVersion !== '' && !infoPlist.includes(`<string>${expectedVersion}</string>`)) {
+  fail(`Info.plist version does not match build/app-version ${expectedVersion}`)
+}
+console.log(`verify-bundle: app ${appBundle} (version ${expectedVersion || '(unstamped)'} buildId ${readFileSync(join(appBundle, 'Contents', 'Resources', 'build-id'), 'utf8').trim()})`)
 
 /** Symlinks under root without following them (pnpm's farm would cycle). */
 function listSymlinks(root) {
@@ -83,7 +105,7 @@ for (const link of listSymlinks(deepseek)) {
     dangling += 1
     continue
   }
-  if (!target.startsWith(deepseek)) escaping += 1
+  if (!pathInside(deepseek, target)) escaping += 1
 }
 if (dangling > 0 || escaping > 0) {
   fail(`${dangling} dangling and ${escaping} escaping symlinks under Resources/deepseek`)
@@ -95,23 +117,8 @@ if (args.has('--no-smoke')) {
   process.exit(0)
 }
 
-function fetchIndex() {
-  return new Promise(resolvePromise => {
-    const request = http.get({ host: '127.0.0.1', port: smokePort, path: '/', timeout: 1500 }, res => {
-      let body = ''
-      res.on('data', chunk => { body += chunk })
-      res.on('end', () => resolvePromise({ ok: res.statusCode >= 200 && res.statusCode < 300, body }))
-    })
-    request.on('error', () => resolvePromise({ ok: false, body: '' }))
-    request.on('timeout', () => {
-      request.destroy()
-      resolvePromise({ ok: false, body: '' })
-    })
-  })
-}
-
 const home = mkdtempSync(join(tmpdir(), 'dsh-verify-'))
-const server = spawn(nodeBin, ['lib/bin.js', 'web', '--port', String(smokePort)], {
+const server = spawn(nodeBin, ['lib/bin.js', 'web', '--port', String(smokePort), '--no-open'], {
   cwd: deepseek,
   detached: true,
   env: { ...process.env, DSH_PROFILE: 'web', DSH_HOME: home },
@@ -128,13 +135,16 @@ try {
       console.error(output.slice(-4000))
       fail('smoke boot timed out')
     }
-    const { ok, body } = await fetchIndex()
-    const rev = body.match(/window\.__DSH_BOOT__ = \{[^<]*"rev":"([^"]+)"/)?.[1] ?? null
-    if (ok && body.includes('dsh-client-connection') && rev !== null && rev === lastRev) {
-      console.log(`verify-bundle: smoke ok (bundled node, manifest rev ${rev})`)
-      break
+    const launchUrl = parseWebLaunchUrl(output, smokePort)
+    if (launchUrl !== null) {
+      const { ok, body } = await fetchAuthenticatedIndex(smokePort, launchUrl)
+      const look = indexLooksReady(body, lastRev)
+      if (ok && look.ready) {
+        console.log(`verify-bundle: smoke ok (bundled node, manifest rev ${look.rev})`)
+        break
+      }
+      if (look.rev !== null) lastRev = look.rev
     }
-    if (rev !== null) lastRev = rev
     await new Promise(resolvePromise => setTimeout(resolvePromise, 500))
   }
 } finally {
