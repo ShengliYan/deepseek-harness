@@ -232,7 +232,8 @@ export class BrowserAuth {
   /**
    * Authenticate an index request. A valid root query token mints the cookie
    * and redirects to clean `/`; a valid cookie lets the caller serve the
-   * index; every other request receives the same minimal 401 response.
+   * index; every other request receives a 401 HTML page whose GET form
+   * submits `token` to `/`.
    * @param req - incoming root or configured-index request.
    * @param res - response owned when this method returns false.
    * @returns true only when the caller may serve index.html.
@@ -273,11 +274,11 @@ export class BrowserAuth {
         res.end()
         return false
       }
-      this.writeUnauthorized(req, res)
+      this.writeUnauthorized(req, res, true)
       return false
     }
     if (this.isAuthenticated(req)) return true
-    this.writeUnauthorized(req, res)
+    this.writeUnauthorized(req, res, false)
     return false
   }
 
@@ -301,13 +302,49 @@ export class BrowserAuth {
       && payload.expiresAt - payload.issuedAt <= this.maxAgeMilliseconds
   }
 
-  private writeUnauthorized(req: ConnectionIndexRequest, res: ConnectionIndexResponse): void {
+  private writeUnauthorized(
+    req: ConnectionIndexRequest,
+    res: ConnectionIndexResponse,
+    invalidToken: boolean,
+  ): void {
     res.writeHead(401, {
       'cache-control': 'no-store',
-      'content-type': 'text/plain; charset=utf-8',
+      'content-type': 'text/html; charset=utf-8',
     })
-    res.end(req.method === 'HEAD'
-      ? undefined
-      : 'dsh web authentication required; reopen the URL printed by dsh web.\n')
+    res.end(req.method === 'HEAD' ? undefined : unauthorizedPage(invalidToken))
   }
+}
+
+/**
+ * Build the unauthenticated index HTML.
+ * @param invalidToken - true when the request carried a rejected `token` query.
+ * @returns HTML whose GET form submits `token` to `/`.
+ */
+function unauthorizedPage(invalidToken: boolean): string {
+  const hint = invalidToken
+    ? '<p>That token is not valid.</p>'
+    : '<p>Paste the token from the dsh web startup URL.</p>'
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>dsh web</title>
+<style>
+body{font:16px/1.45 system-ui,sans-serif;margin:12vh auto;max-width:28rem;padding:0 1.25rem}
+label,input,button{display:block;width:100%;box-sizing:border-box}
+input,button{margin:.45rem 0 1rem;padding:.55rem .7rem;font:inherit}
+</style>
+</head>
+<body>
+<form method="get" action="/">
+<label for="token">Token</label>
+<input id="token" name="token" type="password" autocomplete="off" required autofocus>
+<button type="submit">Continue</button>
+</form>
+${hint}
+</body>
+</html>
+`
 }

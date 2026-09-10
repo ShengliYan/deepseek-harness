@@ -159,11 +159,20 @@ describe('BrowserAuth', () => {
       expect(denied.state.status).toBe(401)
       expect(denied.state.headers).toEqual({
         'cache-control': 'no-store',
-        'content-type': 'text/plain; charset=utf-8',
+        'content-type': 'text/html; charset=utf-8',
       })
-      expect(denied.state.body).toBe(candidate.method === 'HEAD'
-        ? undefined
-        : 'dsh web authentication required; reopen the URL printed by dsh web.\n')
+      if (candidate.method === 'HEAD') {
+        expect(denied.state.body).toBeUndefined()
+        continue
+      }
+      expect(denied.state.body).toContain('<form method="get" action="/">')
+      expect(denied.state.body).toContain('name="token"')
+      const target = new URL(candidate.url!, 'http://dsh.invalid')
+      if (target.searchParams.has('token')) {
+        expect(denied.state.body).toContain('That token is not valid.')
+      } else {
+        expect(denied.state.body).toContain('Paste the token from the dsh web startup URL.')
+      }
     }
   })
 
