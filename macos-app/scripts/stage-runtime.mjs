@@ -43,10 +43,12 @@ const smokePort = Number(process.env.DSH_SMOKE_PORT) || 3199
 // Web-profile plugin surface loaded by the cordis loader at runtime. These are
 // peers/devDependencies inside the workspace, so a --prod deploy of apps/cli
 // alone drops them; declaring them as direct deps of the deploy root keeps the
-// closure complete. Derived from the loader's resolution failures of a prod
-// stage boot; keep in sync when the web profile grows plugins.
-const WEB_PROFILE_PLUGINS = [
-  '@deepseek-ai/cordis-plugin-group',
+// closure complete. Covers both the web-profile plugin surface and the
+// transitive runtime imports the profile boot resolves through built lib/
+// (scanned across the closure's built artifacts). Derived from the loader's
+// resolution failures of a prod stage boot; keep in sync when the web profile
+// grows plugins.
+const WEB_PROFILE_PLUGINS = [  '@deepseek-ai/cordis-plugin-group',
   '@deepseek-ai/cosmokit',
   '@deepseek-ai/dsh-agent',
   '@deepseek-ai/dsh-agent-default-model',
@@ -61,15 +63,17 @@ const WEB_PROFILE_PLUGINS = [
   '@deepseek-ai/dsh-bash-local',
   '@deepseek-ai/dsh-bash-sandbox',
   '@deepseek-ai/dsh-brand',
+  '@deepseek-ai/dsh-chunked-list',
   '@deepseek-ai/dsh-client-connection',
   '@deepseek-ai/dsh-client-hmr',
   '@deepseek-ai/dsh-client-locale',
   '@deepseek-ai/dsh-client-modules',
-  '@deepseek-ai/dsh-client-web',
+  '@deepseek-ai/dsh-client-store',
   '@deepseek-ai/dsh-client-ui-attachment',
   '@deepseek-ai/dsh-client-ui-commands',
   '@deepseek-ai/dsh-client-ui-conversation',
   '@deepseek-ai/dsh-client-ui-deliverables',
+  '@deepseek-ai/dsh-client-ui-dockkit',
   '@deepseek-ai/dsh-client-ui-goal',
   '@deepseek-ai/dsh-client-ui-input-trigger',
   '@deepseek-ai/dsh-client-ui-jobs',
@@ -94,6 +98,7 @@ const WEB_PROFILE_PLUGINS = [
   '@deepseek-ai/dsh-client-ui-user-questions',
   '@deepseek-ai/dsh-client-ui-workflow-run',
   '@deepseek-ai/dsh-client-ui-workspace',
+  '@deepseek-ai/dsh-client-web',
   '@deepseek-ai/dsh-code-runtime',
   '@deepseek-ai/dsh-code-runtime-worker-thread',
   '@deepseek-ai/dsh-command-feedback',
@@ -102,9 +107,12 @@ const WEB_PROFILE_PLUGINS = [
   '@deepseek-ai/dsh-cordis-host-runner',
   '@deepseek-ai/dsh-credentials',
   '@deepseek-ai/dsh-credentials-local',
+  '@deepseek-ai/dsh-deque',
+  '@deepseek-ai/dsh-experimental-webworker-runtime',
   '@deepseek-ai/dsh-fs',
   '@deepseek-ai/dsh-fs-observation-policy',
   '@deepseek-ai/dsh-fs-sandbox',
+  '@deepseek-ai/dsh-hook-protocol',
   '@deepseek-ai/dsh-host-directory-picker',
   '@deepseek-ai/dsh-host-directory-picker-auto',
   '@deepseek-ai/dsh-host-plugin-inventory',
@@ -122,9 +130,13 @@ const WEB_PROFILE_PLUGINS = [
   '@deepseek-ai/dsh-sandbox',
   '@deepseek-ai/dsh-sandbox-local',
   '@deepseek-ai/dsh-sandbox-policy',
+  '@deepseek-ai/dsh-sandbox-windows-acl',
   '@deepseek-ai/dsh-scope',
   '@deepseek-ai/dsh-session',
   '@deepseek-ai/dsh-session-checkpoint-policy',
+  '@deepseek-ai/dsh-session-format',
+  '@deepseek-ai/dsh-session-format-catalog',
+  '@deepseek-ai/dsh-session-format-v2-to-v3',
   '@deepseek-ai/dsh-session-log-export',
   '@deepseek-ai/dsh-session-persistence',
   '@deepseek-ai/dsh-session-persistence-jsonl',
@@ -162,11 +174,17 @@ const WEB_PROFILE_PLUGINS = [
   '@deepseek-ai/dsh-typert-registry',
   '@deepseek-ai/dsh-user-approval',
   '@deepseek-ai/dsh-user-questions',
+  '@deepseek-ai/dsh-util-crypto',
+  '@deepseek-ai/dsh-util-time',
+  '@deepseek-ai/dsh-util-values',
+  '@deepseek-ai/dsh-util-workspace-path',
   '@deepseek-ai/dsh-web',
   '@deepseek-ai/dsh-web-search-ark',
   '@deepseek-ai/dsh-web-search-deepseek',
+  '@deepseek-ai/dsh-win32-process',
   '@deepseek-ai/dsh-workflow',
   '@deepseek-ai/dsh-workspace',
+  '@deepseek-ai/node-addon-system',
   '@deepseek-ai/schemastery',
 ]
 
@@ -207,7 +225,10 @@ function run(step, command, commandArgs, options = {}) {
     stdio: ['ignore', 'pipe', 'pipe'],
     // CI=true keeps pnpm's verify-deps-before-run check non-interactive; a
     // no-TTY modules-dir confirmation aborts the build otherwise.
-    env: { ...process.env, CI: 'true' },
+    // NODE_ENV pins development: `npm run` would otherwise inject
+    // NODE_ENV=production, and pnpm would then prune the workspace's
+    // devDependencies (the tsx/tsdown build tools) out of node_modules.
+    env: { ...process.env, CI: 'true', NODE_ENV: 'development' },
   })
   if (result.status !== 0) {
     console.error(result.stdout)
