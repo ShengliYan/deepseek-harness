@@ -3,7 +3,8 @@
 
 import { cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { SessionId, SessionListState, SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { SessionListState, SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { SessionId } from '@deepseek-ai/dsh-session'
 import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
@@ -32,7 +33,7 @@ const listState = (rows: readonly SessionSummary[]): SessionListState => {
     subagentsByParent: {},
     jobsBySession: {},
     currentAddress: undefined,
-  } as SessionListState
+  }
 }
 
 function renderSwitch(state: SessionListState, sessionId: SessionId, turn: number) {

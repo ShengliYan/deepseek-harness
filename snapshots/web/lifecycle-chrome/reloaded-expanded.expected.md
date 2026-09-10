@@ -34,7 +34,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here - continue in a new conversation":
   - img
 - text: {{clock}} Ran for {{duration}} TTFT {{duration}} {{throughput}} tok/s
 - textbox "Message or run a task... / commands, @ files or sessions"

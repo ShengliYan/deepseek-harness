@@ -95,7 +95,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here - continue in a new conversation":
   - img
 - text: {{clock}} Ran for {{duration}} TTFT {{duration}} {{throughput}} tok/s
 - button "System prompt":
@@ -215,7 +215,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here - continue in a new conversation":
   - img
 - text: {{clock}} Ran for {{duration}} TTFT {{duration}} {{throughput}} tok/s
 - button "Back to bottom":

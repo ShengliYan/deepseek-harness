@@ -1,7 +1,8 @@
 /** Header ancestry breadcrumb derivation: fork lineage joins the subagent chain. */
 
 import { describe, expect, it } from 'vitest'
-import type { SessionId, SessionListState, SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { SessionListState, SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { SessionId } from '@deepseek-ai/dsh-session'
 import { deriveAncestry } from '../src/client/skeleton/ConversationSession.tsx'
 
 const id = (value: string): SessionId => value as SessionId
@@ -26,7 +27,7 @@ const state = (rows: readonly SessionSummary[]): SessionListState => {
     subagentsByParent: {},
     jobsBySession: {},
     currentAddress: undefined,
-  } as SessionListState
+  }
 }
 
 describe('deriveAncestry', () => {

@@ -13,8 +13,56 @@ import {
   IconChevronLeftOutline14, IconChevronRightOutline14, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
-import { deriveVersionPager } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import css from './QuestionVersionSwitch.module.css'
+
+/** Chat-local copy of the header pager projection; owners stay independent. */
+interface VersionPagerState {
+  index: number
+  total: number
+  prev: SessionId | undefined
+  next: SessionId | undefined
+}
+
+/* jscpd:ignore-start -- Chat bubble pager; Conversation header owns the other copy. */
+function lineageRoot(list: SessionListState, id: SessionId): SessionId {
+  const seen = new Set<SessionId>()
+  let cursor: SessionId | undefined = id
+  while (cursor !== undefined && !seen.has(cursor)) {
+    seen.add(cursor)
+    const parentId: SessionId | undefined = list.byId[cursor]?.parentId
+    if (parentId === undefined) return cursor
+    cursor = parentId
+  }
+  return id
+}
+
+function deriveVersionPager(list: SessionListState, id: SessionId): VersionPagerState {
+  if (list.byId[id]?.blank === true) {
+    return { index: 1, total: 1, prev: undefined, next: undefined }
+  }
+  const chain: SessionId[] = []
+  const seen = new Set<SessionId>()
+  let cursor: SessionId | undefined = id
+  while (cursor !== undefined && !seen.has(cursor)) {
+    seen.add(cursor)
+    chain.unshift(cursor)
+    cursor = list.byId[cursor]?.parentId
+  }
+  if (chain.length === 0) return { index: 1, total: 1, prev: undefined, next: undefined }
+  const root = chain[0] as SessionId
+  const rows = Object.values(list.byId)
+  const committed = rows.filter(row => lineageRoot(list, row.id) === root && !row.blank)
+  const committedIds = new Set(committed.map(row => row.id))
+  const chainCommitted = chain.filter(member => committedIds.has(member))
+  const total = committed.length
+  const index = Math.max(1, chainCommitted.length)
+  const prev = chainCommitted.at(-2)
+  const children = committed.filter(row => row.parentId === id)
+  const newest = children.reduce<typeof children[number] | undefined>((best, row) =>
+    best === undefined || row.updatedAt > best.updatedAt ? row : best, undefined)
+  return { index, total: Math.max(total, index), prev, next: newest?.id }
+}
+/* jscpd:ignore-end */
 
 /** Full props: the runtime kit, the version-jump callback, and the locale seat. */
 export type QuestionVersionSwitchProps = {
