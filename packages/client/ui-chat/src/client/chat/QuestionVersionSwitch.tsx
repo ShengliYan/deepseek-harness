@@ -26,8 +26,8 @@ interface VersionPagerState {
 /* jscpd:ignore-start -- Chat bubble pager; Conversation header owns the other copy. */
 function lineageRoot(list: SessionListState, id: SessionId): SessionId {
   const seen = new Set<SessionId>()
-  let cursor: SessionId | undefined = id
-  while (cursor !== undefined && !seen.has(cursor)) {
+  let cursor: SessionId = id
+  while (!seen.has(cursor)) {
     seen.add(cursor)
     const parentId: SessionId | undefined = list.byId[cursor]?.parentId
     if (parentId === undefined) return cursor

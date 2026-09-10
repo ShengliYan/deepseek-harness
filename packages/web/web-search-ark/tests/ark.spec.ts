@@ -189,7 +189,7 @@ describe('ArkSearchProvider', () => {
   it('sends a web_search Response and maps the message item', async () => {
     let captured: { url: string; body: unknown } | undefined
     vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
-      captured = { url, body: JSON.parse(String(init.body)) }
+      captured = { url, body: JSON.parse(init.body as string) }
       return jsonResponse(messageResponse())
     })
     const result = await provider().search({ query: 'ark' })
@@ -206,7 +206,7 @@ describe('ArkSearchProvider', () => {
   it('sends the configured sources, max_keyword, and limit', async () => {
     let body: unknown
     vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
-      body = JSON.parse(String(init.body))
+      body = JSON.parse(init.body as string)
       return jsonResponse({ output: [] })
     })
     await provider({ sources: ['toutiao', 'douyin'], maxKeyword: 5, limit: 3 }).search({ query: 'x' })
@@ -289,7 +289,7 @@ describe('ArkSearchProvider', () => {
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
     expect(url).toBe('https://ark.cn-beijing.volces.com/api/v3/responses')
     expect(init).toMatchObject({ method: 'POST', redirect: 'error' })
-    const body = JSON.parse(String(init.body)) as { model: string; input: unknown[]; tools: unknown[] }
+    const body = JSON.parse(init.body as string) as { model: string; input: unknown[]; tools: unknown[] }
     expect(body.model).toBe('ark-endpoint')
     expect(body.input).toEqual([{ role: 'user', content: [{ type: 'text', text: 'Perform a web search for the query: hello' }] }])
     expect(body.tools).toEqual([{ type: 'web_search' }])

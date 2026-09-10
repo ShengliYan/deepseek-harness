@@ -3,7 +3,6 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type { SessionBinding } from '@deepseek-ai/dsh-api-session-controller/client'
-import type { IConversation } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
@@ -164,7 +163,7 @@ export function apply(ctx: Context): void {
                 ctx.sessions.open(childId)
                 const scoped = ctx.sessions.scope(childId)
                 if (scoped === undefined) return
-                const conversation = scoped.get('conversation') as IConversation | undefined
+                const conversation = scoped.get('conversation')
                 conversation?.input.for(scoped).setDraft(text)
               })
               .catch(() => {
