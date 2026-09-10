@@ -217,10 +217,13 @@ describe('web e2e: long Chat interaction contract', () => {
     ))
     expect(firstTurnPosition).toBe('0px')
 
-    const loadEarlier = page.getByRole('button', { name: 'Load earlier', exact: true })
     const loadedMarks = turnNavigation.getByRole('button', { name: /^Jump to turn / })
     const loadedBefore = await loadedMarks.count()
-    await loadEarlier.click()
+    // Arrival at the top is the paging gesture now; the removed Load-earlier
+    // button used to drive this same request.
+    await page.locator('[data-conversation-scroll]').evaluate((host) => {
+      host.scrollTop = 0
+    })
     // Paging converts marks to their loaded form without moving the
     // fixed-pitch ladder.
     await expect.poll(() => loadedMarks.count(), { timeout: 15_000 }).toBeGreaterThan(loadedBefore)
@@ -306,7 +309,7 @@ describe('web e2e: long Chat interaction contract', () => {
       .toBe(expectedUserText)
 
     await turnTailRow.hover()
-    await turnTailRow.getByRole('button', { name: 'Branch into a new conversation', exact: true }).click()
+    await turnTailRow.getByRole('button', { name: 'Rewind here — continue in a new conversation', exact: true }).click()
     await expect.poll(
       () => scaffold.ctx.agents.list().find(agent => agent.session.header.parentSession === SessionId(SESSION_ID)),
       { timeout: 15_000 },

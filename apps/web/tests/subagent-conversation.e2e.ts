@@ -540,7 +540,7 @@ describe('web e2e: persisted subagent conversation and human continuation', () =
     await page.getByRole('textbox', { name: 'Message or run a task, / commands, @ files or sessions' }).waitFor()
     const forkResponse = page.waitForResponse(response =>
       new URL(response.url()).pathname === '/api/session/fork')
-    await page.getByRole('button', { name: 'Branch into a new conversation' }).last().click()
+    await page.getByRole('button', { name: 'Rewind here — continue in a new conversation' }).last().click()
     const forkReceipt = await (await forkResponse).json() as { result: { ok: boolean } }
     expect(forkReceipt.result).toMatchObject({ ok: true })
     await expect.poll(
@@ -549,7 +549,14 @@ describe('web e2e: persisted subagent conversation and human continuation', () =
     ).toBe(3)
     expect(await page.getByText('Ungrouped', { exact: true }).count()).toBe(0)
     const hierarchy = page.getByRole('navigation', { name: 'Session hierarchy' })
-    await expect.poll(() => hierarchy.getByRole('button').count()).toBe(1)
+    // The merged lineage walk shows the fork's full ancestry: the
+    // workspace-owning ancestor and the subagent source render as clickable
+    // crumbs ahead of the fork (the candidate's stop-at-ordinary-session
+    // guard predates the fork's full-chain breadcrumbs).
+    await expect.poll(() => hierarchy.getByRole('button').count()).toBe(3)
+    const crumbs = await hierarchy.getByRole('button').allTextContents()
+    expect(crumbs.slice(0, 2)).toEqual(['Ask a research subagent to', LABEL])
+    expect(crumbs.at(-1)).toEqual(expect.stringContaining('Explain event sourcing in one'))
     await compareOrRefreshGolden(
       FORK_EXPECTED,
       await captureStableAria(page, '[role="tree"][aria-label="Sessions"]', scaffold.workspaceCwd),
@@ -568,7 +575,7 @@ describe('web e2e: persisted subagent conversation and human continuation', () =
 
     const forkResponse = page.waitForResponse(response =>
       new URL(response.url()).pathname === '/api/session/fork')
-    await page.getByRole('button', { name: 'Branch into a new conversation' }).last().click()
+    await page.getByRole('button', { name: 'Rewind here — continue in a new conversation' }).last().click()
     const forkReceipt = await (await forkResponse).json() as {
       result: { ok: true; value: { sessionId: string } } | { ok: false }
     }

@@ -327,7 +327,7 @@ async function flingTranscript(page: Page, deltaY: number): Promise<void> {
 }
 
 async function wheelToHistoryStart(page: Page): Promise<void> {
-  for (let attempt = 0; attempt < 12; attempt += 1) {
+  for (let attempt = 0; attempt < 24; attempt += 1) {
     if ((await scrollGeometry(page)).scrollTop <= 1) break
     await wheelTranscript(page, -2_400)
   }
@@ -436,26 +436,35 @@ async function expectMarkerAboveComposer(page: Page, marker: string): Promise<vo
 }
 
 /**
- * Drive the transcript to just above the auto-paging trigger zone with
- * per-frame scrollTop writes — the same reader-input signature a pan leaves
- * (see flingTranscript) — without entering it, so a caller can sample the
- * pre-page state deterministically.
+ * Drive the transcript to the auto-paging trigger line with per-frame
+ * scrollTop writes — the same reader-input signature a pan leaves (see
+ * flingTranscript). The ChatView arms its paging anchor when the reader
+ * crosses this line, so a sample taken here agrees with the position the UI
+ * preserves across the prepend, whether it lands pre-commit or after the
+ * compensation.
  */
 async function approachHistoryStart(page: Page): Promise<void> {
   await page.locator('[data-conversation-scroll]').evaluate(async (host) => {
-    while (host.scrollTop > 120) {
-      host.scrollTop -= Math.min(1_200, host.scrollTop - 120)
+    while (host.scrollTop > 2) {
+      host.scrollTop -= Math.min(1_200, host.scrollTop - 2)
       await new Promise<void>(resolve => requestAnimationFrame(() => { resolve() }))
     }
   })
   await nextPaint(page)
 }
 
-/** The final arrival: crossing the top edge is itself the paging gesture. */
+/**
+ * The final arrival: crossing the top edge is itself the paging gesture. The
+ * merged view defers its scroll sampling, so the trigger may already have
+ * fired at the approach line; once a page commits, its compensation has
+ * moved the reader far below the top edge, and driving from there back to
+ * zero would cross the trigger a second time. Only the small residual gap
+ * between the approach line and zero is this drive's to close.
+ */
 async function arriveAtHistoryStart(page: Page): Promise<void> {
   await page.locator('[data-conversation-scroll]').evaluate(async (host) => {
-    while (host.scrollTop > 0) {
-      host.scrollTop -= Math.min(600, host.scrollTop)
+    while (host.scrollTop > 0 && host.scrollTop <= 120) {
+      host.scrollTop = 0
       await new Promise<void>(resolve => requestAnimationFrame(() => { resolve() }))
     }
   })
@@ -464,8 +473,8 @@ async function arriveAtHistoryStart(page: Page): Promise<void> {
 
 async function loadEarlierWithAnchor(page: Page): Promise<void> {
   await approachHistoryStart(page)
-  // One evaluate samples the visible settled row and the row count together,
-  // before the arrival below triggers the automatic page.
+  // One evaluate samples the visible settled row and the row count together
+  // at the trigger line; the arrival below completes the crossing.
   const start = await page.locator('[data-conversation-scroll]').evaluate((host) => {
     const rows = [...host.querySelectorAll<HTMLElement>('[data-chat-anchor-key]')]
     const viewport = host.getBoundingClientRect()
@@ -482,11 +491,15 @@ async function loadEarlierWithAnchor(page: Page): Promise<void> {
     return {
       anchorKey: row.dataset.chatAnchorKey,
       anchorTop: row.getBoundingClientRect().top - viewport.top,
-      rows: rows.length,
     }
   })
   await arriveAtHistoryStart(page)
-  await expect.poll(() => loadedFlowRows(page), { timeout: 30_000 }).toBeGreaterThan(start.rows)
+  // The commit signal is the reader itself: once the page prepends, its
+  // compensation moves the reader off the top edge by the prepended height.
+  // The DOM row count does not qualify — virtualization bounds the mounted
+  // set, and the topmost row may not move when the head page is loaded.
+  await expect.poll(async () => (await scrollGeometry(page)).scrollTop, { timeout: 30_000 })
+    .toBeGreaterThan(120)
   await nextPaint(page)
   await expectSameFlowTop(page, { key: start.anchorKey, top: start.anchorTop })
 }
@@ -808,10 +821,29 @@ describe('web e2e: long Chat scroll contract', () => {
       await loadEarlierWithAnchor(world.page)
       await loadEarlierWithAnchor(world.page)
       // A third trip to the top; wait for its automatic page to settle before
-      // sampling the anchor the tab switches must preserve.
-      const beforeThird = await loadedFlowRows(world.page)
+      // sampling the anchor the tab switches must preserve. The commit signal
+      // is the reader's compensation off the top edge — virtualization keeps
+      // the DOM row count flat while pages prepend.
       await wheelToHistoryStart(world.page)
-      await expect.poll(() => loadedFlowRows(world.page), { timeout: 30_000 }).toBeGreaterThan(beforeThird)
+      // The arrival may trigger one more page: wait for its commit (the
+      // reader is compensated off the top edge), or for the top to stay quiet
+      // through the view's deferred-sampling window (800ms > 500ms), proving
+      // the history is exhausted where the reader rests.
+      let quietSince = 0
+      await expect.poll(async () => {
+        const geometry = await scrollGeometry(world.page)
+        const busy = await world.page.getByRole('status', { name: 'Loading' }).count()
+        if (geometry.scrollTop > 120) return true
+        if (busy > 0 || geometry.scrollTop > 2) {
+          quietSince = 0
+          return false
+        }
+        if (quietSince === 0) {
+          quietSince = Date.now()
+          return false
+        }
+        return Date.now() - quietSince >= 800
+      }, { timeout: 30_000 }).toBe(true)
       await wheelTranscript(world.page, 1_300)
       const sessionAnchor = await visibleFlowAnchor(world.page)
 

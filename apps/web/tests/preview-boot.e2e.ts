@@ -429,7 +429,11 @@ async function bootPreview(origin: string, browser: Browser): Promise<void> {
     await catalog.getByRole('treeitem', { name: /Continue preview verification/ }).waitFor()
     await catalog.press('Escape')
 
-    await page.getByRole('button', { name: 'Load earlier', exact: true }).click()
+    // Arrival at the top is the paging gesture now; the removed Load-earlier
+    // button used to drive this same request.
+    await page.locator('[data-conversation-scroll]').evaluate((host) => {
+      host.scrollTop = 0
+    })
     await page.getByText(SHOWCASE_OLDEST, { exact: true }).waitFor({ timeout: 15_000 })
     expect(pageErrors.map(error => error.message)).toEqual([])
     expect(consoleErrors.filter(line =>

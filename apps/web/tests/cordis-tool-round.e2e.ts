@@ -198,7 +198,7 @@ describe('web e2e: Cordis tools use their owned cards', () => {
     // Final Assistant text precedes turn/end. Three footers prove every turn
     // reached the render state covered by the ARIA golden.
     await expect.poll(
-      () => page.getByRole('button', { name: 'Branch into a new conversation', exact: true }).count(),
+      () => page.getByRole('button', { name: 'Rewind here — continue in a new conversation', exact: true }).count(),
       { timeout: 15_000 },
     ).toBe(3)
     await page.locator('[data-conversation-scroll]').evaluate((host) => { host.scrollTop = host.scrollHeight })
