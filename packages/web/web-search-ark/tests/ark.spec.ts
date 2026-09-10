@@ -1,3 +1,5 @@
+import { createRequire } from 'node:module'
+
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import { ArkSearchProvider, ARK_PROVIDER_ID, answerText, citationSources, mapArkResponse } from '../src/provider.ts'
@@ -222,6 +224,18 @@ describe('ArkSearchProvider', () => {
     await provider().search({ query: 'x' })
     expect(auth).toBe('Bearer ark-key')
   })
+
+  it('sends the package version as User-Agent', async () => {
+    const { version } = createRequire(import.meta.url)('../package.json') as { version: string }
+    let agent: string | undefined
+    vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+      agent = (init.headers as Record<string, string>)['user-agent']
+      return jsonResponse({ output: [] })
+    })
+    await provider().search({ query: 'x' })
+    expect(agent).toBe(`deepseek-harness/${version}`)
+  })
+
 
   it('throws WEB_PROVIDER_ERROR on a non-2xx response with the detail message', async () => {
     vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ error: { message: 'quota exceeded' } }), { status: 429 }))

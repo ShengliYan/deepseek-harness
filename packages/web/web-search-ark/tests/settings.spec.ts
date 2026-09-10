@@ -88,8 +88,8 @@ describe('web-search-ark settings section', () => {
     const url = await searchOnce(bench.ctx)
     expect(url).toContain('https://ark.cn-beijing.volces.com/api/v3/responses')
     expect(bench.ctx.web).toBeDefined()
-    bench.settingsFiber.dispose()
-    bench.pluginFiber.dispose()
+    await bench.settingsFiber.dispose()
+    await bench.pluginFiber.dispose()
   })
 
   it('serves a stored endpoint to the next search without re-registering the provider', async () => {
@@ -99,8 +99,8 @@ describe('web-search-ark settings section', () => {
       model: 'ark-endpoint',
     })
     expect(await searchOnce(bench.ctx)).toContain('https://plan.test/api/v3/responses')
-    bench.settingsFiber.dispose()
-    bench.pluginFiber.dispose()
+    await bench.settingsFiber.dispose()
+    await bench.pluginFiber.dispose()
   })
 
   it('resolves a named credential through the credentials seam and sends it as the bearer key', async () => {
@@ -155,7 +155,7 @@ describe('web-search-ark settings section', () => {
     await ctx.plugin(arkPlugin, { apiKey: 'ark-key', model: 'ark-model', sources: ['toutiao', 'moji'], maxKeyword: 5, limit: 3 })
     await ctx.web.search({ query: 'src' })
     const [, init] = fetchMock.mock.calls.at(-1) as unknown as [string, RequestInit]
-    const body = JSON.parse(String(init.body)) as { tools: unknown[] }
+    const body = JSON.parse(init.body as string) as { tools: unknown[] }
     expect(body.tools).toEqual([{ type: 'web_search', sources: ['toutiao', 'moji'], max_keyword: 5, limit: 3 }])
     await ctx.fiber.dispose()
   })

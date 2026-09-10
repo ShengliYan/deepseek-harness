@@ -7,6 +7,8 @@
  * @module @deepseek-ai/dsh-web-search-ark/provider
  */
 
+import { createRequire } from 'node:module'
+
 import { WebError } from '@deepseek-ai/dsh-web'
 import type {
   WebSearchProvider,
@@ -38,8 +40,13 @@ const DEFAULT_MAX_KEYWORD = 10
 /** Default result items per round. */
 const DEFAULT_LIMIT = 10
 
-/** Attribution header sent on every request. Bump with the package version. */
-const USER_AGENT = 'deepseek-harness/0.0.1'
+/** Attribution header sent on every request; the manifest is the single version source, so it cannot drift from what publishes. */
+const USER_AGENT = `deepseek-harness/${(createRequire(import.meta.url)('../package.json') as { version: string }).version}`
+
+/** Join `{baseURL}/responses` without doubling slashes when the base already ends in `/`. */
+function responsesUrl(baseURL: string): string {
+  return new URL('responses', baseURL.endsWith('/') ? baseURL : `${baseURL}/`).href
+}
 
 /**
  * Exact secret-free Ark Responses request recorded immediately before one
@@ -201,7 +208,7 @@ export class ArkSearchProvider implements WebSearchProvider {
       ...options.limit === DEFAULT_LIMIT ? {} : { limit: options.limit },
       ...options.sources === undefined || options.sources.length === 0 ? {} : { sources: [...options.sources] },
     }
-    const endpoint = `${options.baseURL}/responses`
+    const endpoint = responsesUrl(options.baseURL)
     const body: ArkSearchLlmRequest['body'] = {
       model: options.model,
       stream: false,

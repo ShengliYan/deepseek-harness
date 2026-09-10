@@ -6,6 +6,8 @@
  * @module @deepseek-ai/dsh-web-search-exa/provider
  */
 
+import { createRequire } from 'node:module'
+
 import { WebError } from '@deepseek-ai/dsh-web'
 import type {
   WebSearchProvider,
@@ -27,8 +29,8 @@ export const EXA_DEFAULT_SEARCH_TYPE = 'auto'
 /** Default number of highlight sentences requested per result. */
 export const EXA_DEFAULT_HIGHLIGHTS_PER_RESULT = 1
 
-/** Attribution header sent on every request. Bump with the package version. */
-const USER_AGENT = 'deepseek-harness/0.0.1'
+/** Attribution header sent on every request; the manifest is the single version source, so it cannot drift from what publishes. */
+const USER_AGENT = `deepseek-harness/${(createRequire(import.meta.url)('../package.json') as { version: string }).version}`
 
 /** Resolved provider options (the plugin's `apply` supplies env-var and constant defaults). */
 export interface ExaSearchProviderOptions {
