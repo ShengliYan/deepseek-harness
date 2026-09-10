@@ -156,7 +156,6 @@ const WEB_PROFILE_PLUGINS = [
   '@deepseek-ai/dsh-system-prompt',
   '@deepseek-ai/dsh-timeout',
   '@deepseek-ai/dsh-tool-call-timeout-policy',
-  '@deepseek-ai/dsh-tool-subagent-report',
   '@deepseek-ai/dsh-tools',
   '@deepseek-ai/dsh-typert-loader',
   '@deepseek-ai/dsh-typert-protocol',

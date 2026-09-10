@@ -11,7 +11,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-agent'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
-import { installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-settings'
+import type {} from '@deepseek-ai/dsh-settings'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import type {} from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-web'
@@ -78,7 +78,7 @@ export const Config: z<Config> = z.object({
 })
 
 /** Settings namespace carrying this provider's endpoint, model, and key reference. */
-export const WEB_SEARCH_ARK_SETTINGS_NAMESPACE = settingsNamespace('web-search-ark')
+export const WEB_SEARCH_ARK_SETTINGS_NAMESPACE = 'web-search-ark'
 
 /**
  * Project one resolved section into the options the provider serves its next
@@ -130,13 +130,15 @@ function resolveOptions(ctx: Context, config: Config): ArkSearchProviderOptions 
 /** Register the Ark search provider with `ctx.web`. */
 export function apply(ctx: Context, config: Config): void {
   let current: () => Config = () => config
-  installSettingsSection(ctx, WEB_SEARCH_ARK_SETTINGS_NAMESPACE, Config, config, {
-    setSource: (source) => {
-      current = source
-    },
-    // The registration carries no resolved value: the provider projects the
-    // section per search, so a committed change needs no re-registration.
-    onChange: () => {},
+  ctx.inject(['settings'], (settingsCtx) => {
+    settingsCtx.settings.installSection(ctx, WEB_SEARCH_ARK_SETTINGS_NAMESPACE, Config, config, {
+      setSource: (source) => {
+        current = source
+      },
+      // The registration carries no resolved value: the provider projects the
+      // section per search, so a committed change needs no re-registration.
+      onChange: () => {},
+    })
   })
   ctx.web.registerSearchProvider(new ArkSearchProvider(() => resolveOptions(ctx, current())))
 }
