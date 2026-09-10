@@ -3312,6 +3312,39 @@ export interface Config {
 
 来源：[`packages/web/web-fetch-http/src/index.ts:32`](../packages/web/web-fetch-http/src/index.ts)
 
+<a id="deepseek-aidsh-web-search-ark"></a>
+
+## `@deepseek-ai/dsh-web-search-ark`
+
+需要：`web`
+
+```ts config-catalog
+/** Plugin config (all optional — `apply` fills env-var and constant defaults). */
+export interface Config {
+  /** Literal Ark API key; prefer {@link apiKeyEnv} so no secret enters configuration files. */
+  apiKey?: string
+  /** Credential reference resolved for each search; defaults to `ARK_API_KEY`. */
+  apiKeyEnv?: string
+  /** Responses endpoint base; `/responses` is appended. Defaults to the standard Ark base. */
+  baseURL?: string
+  /** Responses-format model id or endpoint id. */
+  model?: string
+  /** Restrict retrieval to these sources; omitted searches the web wholesale. */
+  sources?: ArkSearchSourceField[]
+  /** Max parallel search keywords per round. Defaults to 10. */
+  maxKeyword?: number
+  /** Max result items per round. Defaults to 10. */
+  limit?: number
+  /** Max tool-call rounds. Defaults to 3. */
+  maxToolCalls?: number
+}
+
+/** Configurable source channel names (the schema's enum). */
+export type ArkSearchSourceField = 'search_engine' | 'toutiao' | 'douyin' | 'moji'
+```
+
+来源：[`packages/web/web-search-ark/src/index.ts:43`](../packages/web/web-search-ark/src/index.ts)
+
 <a id="deepseek-aidsh-web-search-deepseek"></a>
 
 ## `@deepseek-ai/dsh-web-search-deepseek`

@@ -6,7 +6,7 @@ Status: implemented
 
 ## 问题
 
-模型流量跑在火山方舟（Volcengine Ark）上的部署在 harness 的 [web capability seam](../../../../packages/web/web/README.md) 里没有可用的搜索通道：已发布的 provider 覆盖 Exa、Perplexity 和 DeepSeek，因此只有 Ark API key 这一种凭据的部署能跑 agent，却跑不了面向模型的网页搜索工具。Ark 只通过 Responses API 的内置 `web_search` 工具暴露搜索——不存在独立的搜索端点——所以仅靠配置无法让任何既有 provider 指向 Ark。
+模型流量跑在火山方舟（Volcengine Ark）上的部署在 harness 的 [web capability seam](../../../../packages/web/web/README.zh.md) 里没有可用的搜索通道：已发布的 provider 覆盖 Exa、Perplexity 和 DeepSeek，因此只有 Ark API key 这一种凭据的部署能跑 agent，却跑不了面向模型的网页搜索工具。Ark 只通过 Responses API 的内置 `web_search` 工具暴露搜索——不存在独立的搜索端点——所以仅靠配置无法让任何既有 provider 指向 Ark。
 
 ## 决策
 
