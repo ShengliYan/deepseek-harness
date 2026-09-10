@@ -6,7 +6,8 @@
  * with ERR_MODULE_NOT_FOUND.
  *
  * Checks:
- *   1. app.asar contains the Electron main, preload, and updater modules, and
+ *   1. app.asar contains the Electron main, app-data-dir, preload, and updater
+ *      modules, and
  *      packed main.js parses (`node --check`); a SyntaxError there exits before
  *      any boot log and leaves the user in a leftover browser tab
  *   2. Resources/node/bin/node exists (the bundled runtime; without it the
@@ -49,7 +50,7 @@ const nodeBin = join(appBundle, 'Contents', 'Resources', 'node', 'bin', 'node')
 
 if (!existsSync(appAsar)) fail(`app.asar missing: ${appAsar}`)
 const asarFiles = new Set(listPackage(appAsar))
-for (const required of ['/main.js', '/preload.js', '/updater.js', '/package.json']) {
+for (const required of ['/main.js', '/app-data-dir.js', '/preload.js', '/updater.js', '/package.json']) {
   if (!asarFiles.has(required)) fail(`app.asar missing required module: ${required}`)
 }
 const packedMain = extractFile(appAsar, 'main.js')

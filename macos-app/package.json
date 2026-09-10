@@ -25,6 +25,7 @@
     },
     "files": [
       "main.js",
+      "app-data-dir.js",
       "preload.js",
       "updater.js",
       "package.json"
