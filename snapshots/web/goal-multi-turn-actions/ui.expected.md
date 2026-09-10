@@ -41,7 +41,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here — continue in a new conversation":
   - img
 - button "Ran for {{duration}}":
   - img
@@ -108,9 +108,9 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here — continue in a new conversation":
   - img
-- tooltip "Branch into a new conversation"
+- tooltip "Rewind here — continue in a new conversation"
 - button "Ran for {{duration}}":
   - img
   - text: Ran for {{duration}}
@@ -129,6 +129,6 @@
 - button "2 turns 12 steps · {{throughput}} tok/s":
   - img
   - text: 2 turns 12 steps{{throughput}} tok/s
-- button "115K tok · Cache hit 91.00%":
+- button "115K tok · Cache hit 91.14%":
   - img
-  - text: 115K tokCache hit 91.00%
+  - text: 115K tokCache hit 91.14%

@@ -96,7 +96,7 @@
   - img
 - button "Bad response":
   - img
-- button "Rewind here - continue in a new conversation":
+- button "Rewind here — continue in a new conversation":
   - img
 - button "Ran for {{duration}}":
   - img
@@ -219,7 +219,7 @@
   - img
 - button "Bad response":
   - img
-- button "Rewind here - continue in a new conversation":
+- button "Rewind here — continue in a new conversation":
   - img
 - button "Ran for {{duration}}":
   - img

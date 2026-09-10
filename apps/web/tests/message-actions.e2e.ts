@@ -14,7 +14,7 @@ import {
   assertFixtureInventory, captureStableAria, compareOrRefreshGolden, fixtureUserPrompts,
   launchWebScaffold, parseSeedFixture, renderSeedFixture, seedSession, watchConsole, webSnapshotMode, type WebScaffold,
 } from './scaffold.ts'
-import { newEnglishPage, saveFailureShot } from './support.ts'
+import { connectFreshWorkspace, newEnglishPage, saveFailureShot } from './support.ts'
 
 const SNAPSHOT_DIR = fileURLToPath(new URL('../../../snapshots/web/message-actions', import.meta.url))
 // Borrowed read-only: this scenario needs any settled user+assistant pair, not
@@ -192,7 +192,7 @@ describe('web e2e: message IconActions and clocks on settled history', () => {
     const copyButtons = page.getByRole('button', { name: 'Copy' })
     await expect.poll(() => copyButtons.count(), { timeout: 10_000 }).toBeGreaterThanOrEqual(4)
     await copyButtons.first().focus()
-    const branchButtons = page.getByRole('button', { name: 'Rewind here - continue in a new conversation' })
+    const branchButtons = page.getByRole('button', { name: 'Rewind here — continue in a new conversation' })
     await expect.poll(() => branchButtons.count(), { timeout: 5_000 }).toBe(2)
     await expect.poll(
       () => branchButtons.evaluateAll(buttons => buttons.map(button => button.getAttribute('aria-disabled'))),
@@ -221,7 +221,7 @@ describe('web e2e: message IconActions and clocks on settled history', () => {
   it.skipIf(MODE === 'record')('forks through the settled-message and session-row actions', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-message-fork'))
     // The last message action belongs to the completed second-turn assistant.
-    await page.getByRole('button', { name: 'Rewind here - continue in a new conversation' }).last().click()
+    await page.getByRole('button', { name: 'Rewind here — continue in a new conversation' }).last().click()
     await expect.poll(
       () => scaffold.ctx.agents.list().find(agent => agent.session.header.parentSession === SessionId(SEED_ID)),
       { timeout: 15_000 },
@@ -301,8 +301,12 @@ describe('web e2e: message IconActions and clocks on settled history', () => {
   it('rewinds from a user message into a prefilled child and pages between versions', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-message-rewind'))
     // The open session carries the seeded two turns; rewind from the FIRST
-    // question, which cuts an empty prefix — the child opens with the
-    // original prompt prefilled in its composer.
+    // question, which cuts an empty prefix. The child is a blank pending
+    // rewind DRAFT: its row shows the localized New Session label, and the
+    // hero composer keeps the workspace-trigger posture (the e2e seed is
+    // ungrouped) until a workspace connection activates the live composer.
+    // The original prompt is prefilled in the child's session input and
+    // renders once that composer is live.
     const promptBubble = page.locator('[data-chat-flow-kind="user"]').first()
     const rewindButton = promptBubble.getByRole('button', { name: 'Rewind and edit from here' })
     await rewindButton.click()
@@ -310,9 +314,13 @@ describe('web e2e: message IconActions and clocks on settled history', () => {
     await expect.poll(
       () => selectedRow.textContent(),
       { timeout: 15_000 },
-    ).toContain('Use the read tool twice')
+    ).toContain('New Session')
+    // Connecting a workspace activates the blank session's live composer,
+    // which renders the prefilled prompt.
+    await connectFreshWorkspace(page, scaffold.workspaceCwd)
+    const composer = page.locator('[data-composer-input]').first()
     await expect.poll(
-      () => page.locator('textarea').inputValue(),
+      () => composer.textContent(),
       { timeout: 10_000 },
     ).toBe(PROMPT)
     // The child is a pending rewind DRAFT: no version was committed yet, so
