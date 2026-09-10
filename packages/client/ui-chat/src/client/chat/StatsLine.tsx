@@ -13,7 +13,7 @@ import type { ChatViewSlotProps } from '../contract/slots.ts'
 import type { ChatSnapshot } from '../contract/snapshot.ts'
 import { formatTokensPerSecond } from './message-chrome.ts'
 import { assistantStepReading } from '../contract/turn-metrics.ts'
-import { formatCacheHitPercent, formatTokens } from './token-format.ts'
+import { formatTokens } from './token-format.ts'
 import css from './StatsLine.module.css'
 
 interface WindowStats {
@@ -94,15 +94,32 @@ export function formatDuration(ms: number, t: ChatViewSlotProps['t']): string {
 }
 
 /**
- * Display-ready cache-hit share of prompt-side input over the whole durable log.
+ * Round a cache-read ratio to integer hundredths of a percent, ties rounded
+ * up, exactly over safe integers. The multiplication stays exact while
+ * `cacheReadTokens` stays at or below `Number.MAX_SAFE_INTEGER / 20000`
+ * (~4.5e11 cumulative tokens); past that bound the ratio exceeds every
+ * representable two-decimal step below 100 anyway, and the caller clamps.
+ */
+function roundedHundredthPercent(cacheReadTokens: number, denominator: number): number {
+  return Math.floor((cacheReadTokens * 20000 + denominator) / (2 * denominator))
+}
+
+/**
+ * Display-ready cache-hit share of prompt-side input over the whole durable log,
+ * always at two decimal places.
  * @param usage - the session's token-usage projection value.
- * @returns integer text when integer rounding stays below 100, otherwise the
- * minimum decimal precision that still rounds below 100; a full hit returns
- * 100, and no billed input returns null.
+ * @returns the ratio rounded half-up to two decimals (`98.55`). A non-full hit
+ * never displays as `100`: the rounded value caps at `99.99`; a full hit
+ * returns `100.00`, and no billed input returns null.
  */
 export function cacheHitPercent(usage: TokenUsageProjection): string | null {
   const denominator = billedInputTokens(usage)
-  return formatCacheHitPercent(usage.cacheReadTokens, denominator)
+  if (denominator === 0) return null
+  const missedInputTokens = usage.uncachedInputTokens + usage.cacheWriteTokens
+  if (missedInputTokens === 0) return '100.00'
+
+  const rounded = Math.min(roundedHundredthPercent(usage.cacheReadTokens, denominator), 9_999)
+  return `${Math.floor(rounded / 100)}.${String(rounded % 100).padStart(2, '0')}`
 }
 
 /**

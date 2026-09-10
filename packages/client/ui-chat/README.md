@@ -33,6 +33,8 @@ Chat shows a collapsed `System prompt` row for each non-empty initial or resumed
 
 A completed Turn shows an expandable usage row only when the loaded window includes `turn/start` and every started model attempt reports safe, exact usage. The row omits unavailable optional buckets. Incomplete or contradictory accounting hides the complete disclosure instead of presenting a partial total.
 
+The composer stats strip formats every non-empty cache-hit ratio at exactly two decimal places, rounded half-up. A non-full ratio never displays as 100% — its rounded value caps at 99.99% — and a full cache hit displays 100.00%.
+
 -----
 
 <a id="turn-process-folding"></a>
