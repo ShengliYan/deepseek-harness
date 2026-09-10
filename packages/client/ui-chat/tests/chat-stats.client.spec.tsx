@@ -255,7 +255,7 @@ describe('StatsPills', () => {
     expect(dialog.firstChild?.textContent).toBe('Token usage105 tok')
     const tokens = dialog.querySelector('[data-session-stats-usage]') as HTMLElement
     expect(tokens).toBeTruthy()
-    expect(tokens.textContent).toContain('Cache hit90%')
+    expect(tokens.textContent).toContain('Cache hit90.00%')
     expect(tokens.textContent).toContain('Uncached input10 tok')
     expect(tokens.textContent).toContain('Cached input90 tok')
     expect(tokens.textContent).toContain('Cache write0 tok')

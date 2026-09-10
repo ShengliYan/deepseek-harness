@@ -904,17 +904,19 @@ describe('ChatView', () => {
     })
     try {
       rowRectCalls = 0
-      fireEvent.click(view.getByText('加载更早'))
-      expect(hitTest).toHaveBeenCalledTimes(1)
+      readerScroll(scroller, 0) // arrival at the top starts the older page
+      // The anchored paging capture and the continuous chatScroll save each
+      // hit-test the viewport top once per delivery.
+      expect(hitTest).toHaveBeenCalledTimes(2)
       expect(hitTest.mock.calls[0]?.[1]).toBe(1)
-      expect(rowRectCalls).toBeLessThanOrEqual(6)
+      expect(rowRectCalls).toBeLessThanOrEqual(12)
 
       Object.defineProperty(scroller, 'scrollHeight', { value: 1_300, writable: true })
       prepended = true
       act(() => {
         h.setChat({ nodes: [assistant(2, 'older'), ...nodes] })
       })
-      expect(scroller.scrollTop).toBe(450) // reader offset 50 + first visible row's 400px shift
+      expect(scroller.scrollTop).toBe(400) // reader arrived at the top; anchored row's 400px shift
     } finally {
       if (originalHitTest !== undefined) {
         Object.defineProperty(document, 'elementsFromPoint', originalHitTest)
