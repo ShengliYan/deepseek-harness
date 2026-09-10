@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-10-integration-0910-conflict-decisions.md
-2026-09-10-integration-0910-conflict-decisions.md: e558111a2c63b22512b5356b45edaa90b05e5c2f
-2026-09-10-integration-0910-conflict-decisions.zh.md: ebdc56ce7dd940c39620364ef309b6422c414c14
+2026-09-10-integration-0910-conflict-decisions.md: 6b29a32292daac54d072a240783b2286f05abae9
+2026-09-10-integration-0910-conflict-decisions.zh.md: 3ea94d497922b4f5e7d83c43982eb07528fe5bc2

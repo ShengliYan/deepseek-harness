@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-16-rewind-affordance-and-fork-lineage.md
-2026-08-16-rewind-affordance-and-fork-lineage.md: 0d2be73aa9e87dc79822110e7e42ea626c1be9a6
-2026-08-16-rewind-affordance-and-fork-lineage.zh.md: f7d08e0a95fde4d17ad3d93d4f4db600cd985056
+2026-08-16-rewind-affordance-and-fork-lineage.md: 68b089685a28aae972db8e6813c48e646a97bb33
+2026-08-16-rewind-affordance-and-fork-lineage.zh.md: b0983e07de91da5d89a4f954512cd20458aa38ac

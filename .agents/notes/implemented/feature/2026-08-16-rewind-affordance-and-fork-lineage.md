@@ -20,7 +20,7 @@ Lineage: `deriveAncestry` now walks `parentId` unconditionally (oldest first, cu
 
 **A true in-place rewind that truncates the session log.** Rejected: the session log is append-only and model-visible content must be reconstructable from it (`Model-visible ⟺ logged`); a truncation primitive would weaken that invariant, while fork already expresses "continue from an earlier completed turn" without destroying the future branch.
 
-**Show fork children nested beneath their source in the session list.** Rejected: the peer-row model (both rows independently selectable, searchable, drag-reorderable) is the established decision ([2026-07-27-web-session-fork-actions.md](2026-07-27-web-session-fork-actions.md)); the header breadcrumb adds lineage navigation without changing list ownership.
+**Show fork children nested beneath their source in the session list.** Rejected: the peer-row model (both rows independently selectable, searchable, drag-reorderable) is the established decision ([2026-07-27-web-session-fork-actions](../../archived/feature/2026-07-27-web-session-fork-actions.md)); the header breadcrumb adds lineage navigation without changing list ownership.
 
 **Keep the subagent-only breadcrumb and add a separate fork chip.** Rejected: one ancestry surface is simpler, and the two lineages share the same `parentId` field.
 

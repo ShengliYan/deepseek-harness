@@ -26,6 +26,21 @@ The `integration/0910` branch merges the fixed upstream target `b2e3b2a012` (0.1
 
 **Web search settings API.** The candidate settings package dropped `installSettingsSection` in favor of `ctx.settings.installSection(owner, ns, schema, entry, hooks)` behind `ctx.inject(['settings'], …)`. The Ark provider's `apply` was migrated to that pattern (namespace is now a plain literal checked by the type system), matching the `llm-pi-ai`/`llm-deepseek` consumers.
 
+**Spec expectation adaptations (§6.1 clean-clone `pnpm test`).** Two failures were stale expectations, not source defects, and both follow "change obsolete behavior with its tests":
+
+- `chat-stats.client.spec.tsx`: the candidate's new dialog test expected an integer cache-hit percentage; the merged `StatsPills` renders the fork's two-decimal value, so the expectation is `90.00%`.
+- `chat-view.client.spec.tsx` ("falls back to the first visible row when the viewport top hit-test misses"): a candidate-side test from the load-earlier-button era (upstream #3005). Fork commit `8088ba7f02` removed the button and updated three of its four click-driven tests but missed this one — it failed at the fork HEAD too (verified on a temporary worktree at `e28de3143c`). It now drives the merged paging gesture (reader arrival at the top via `scroll`/`scrollend`) and asserts the two synchronous `elementsFromPoint` hit-tests that one top-arrival delivery performs (the anchored paging capture and the continuous `chatScroll.save`) plus the relaxed row-rect budget of the two binary-search fallbacks.
+
+**web-search-ark documentation conformance.** The fork-added package predates the candidate's documentation standard (the dsh-doc skill consolidation gates in `doc-standard.spec.ts`): its README pair was restructured onto the `package-reference` template skeleton (frontmatter `kind`/`description`, Summary / Table of Contents / Dev Note, and the 概述 / 目录 / 开发备注 equivalents), its config declaration was added to the generated `docs/config-catalog.md` (`gen-config-catalog`; the reviewed Chinese counterpart updated by hand and the pair re-recorded), and the zh side's locale links were pointed at the `.zh.md` targets. The fork's Ark-provider Agent Note needed the same locale-link fix on its zh side. All three pairs were re-recorded through `verify-translation-pairing --write`.
+
+**§6.1 environmental triage (this Mac).** The remaining `pnpm test` failures reproduce with identical messages outside the merge's influence and are recorded as host-environment deviations, not merge defects:
+
+- `terminal-bash` `local.spec` (6): `posix_openpt failed: Operation not permitted` — the pty device is denied to the session sandbox that ran the gate chain.
+- `bash-local` `executor.spec` (1): the `mktemp`-based verify root is a `/var/folders/…` (non-canonical) path while the child `pwd` reports `/private/var/folders/…`; the assertion compares them for equality.
+- `code-runtime-python` `runtime.spec` (238) and `boot-write-failure.spec` (6): the package loads only a CPython 3.10+ interpreter; the host default `python3` is 3.9.6 while `/usr/local/bin/python3` is 3.10.4 (the spec resolves `python3` through `PATH`).
+- `run-gates.spec` abort/process-tree tests (6): process-group kill and reparenting semantics under the detached nohup chain.
+- `transform-corpus.spec` (1): candidate-side. `tsx`'s tsconfig `paths` redirect the built dockkit bundle's bare `@deepseek-ai/dsh-client-ui-primitives` import to the source tree, so the sweep fails at `ui-primitives/src/StateDot.module.css` instead of the pinned baseline `ui-dockkit/lib/components/dockkit.module.css`. A candidate-only worktree at `b2e3b2a012` fails identically, and every corpus-relevant file (dockkit, the StateDot source, both package manifests, the tsconfig alias block, the spec and its pinned baseline) is byte-identical between the candidate and the merged tree.
+
 ## Alternatives considered
 
 **Cherry-pick `756e2c3830` on top of the merge.** Rejected: it would re-introduce the fork-era uuid workaround next to the upstream mechanism it was superseded by.
@@ -36,4 +51,4 @@ The `integration/0910` branch merges the fixed upstream target `b2e3b2a012` (0.1
 
 ## Consequences
 
-The merge commit carries the adapted behavior with the candidate as the structural base; the hgg save branch merges on top as its own merge commit. The 3 re-touched bilingual pairs (two package READMEs, the providers guide) are re-recorded through `verify-translation-pairing --write` before staging. Candidate acceptance (§6) must still prove the assembled output: `test:gui`, the replayed `DSH_SNAPSHOT=replay test:web` lane, and the two isolated-platform App/`start-dsh-web.ps1` runs.
+The merge commit carries the adapted behavior with the candidate as the structural base; the hgg save branch merges on top as its own merge commit. The §6.1 spec adaptations and documentation conformance land on the integration branch as their own commits and re-freeze the candidate SHA before any packaging. The touched bilingual pairs (two package READMEs, the providers guide, the Ark README pair, the config-catalog pair, the Ark-provider note pair, and this note) are re-recorded through `verify-translation-pairing --write` before staging. Candidate acceptance (§6) must still prove the assembled output: `test:gui`, the replayed `DSH_SNAPSHOT=replay test:web` lane, and the two isolated-platform App/`start-dsh-web.ps1` runs.

@@ -26,6 +26,21 @@ Status: implemented
 
 **Web 搜索设置 API。** 候选版 settings 包弃用了 `installSettingsSection`，改为 `ctx.inject(['settings'], …)` 之后的 `ctx.settings.installSection(owner, ns, schema, entry, hooks)`。Ark provider 的 `apply` 迁移到该模式（命名空间现为类型系统校验的普通字面量），与 `llm-pi-ai`/`llm-deepseek` 的消费方式一致。
 
+**测试期望适配（§6.1 干净 clone 的 `pnpm test`）。** 两个失败是过期的期望值而非源码缺陷，均按"行为过期则连同测试一起改"处理：
+
+- `chat-stats.client.spec.tsx`：候选版新增的 dialog 测试期望整数百分比；合并后 `StatsPills` 渲染 fork 的两位小数值，期望值改为 `90.00%`。
+- `chat-view.client.spec.tsx`（"视口顶部命中测试落空时回退到首个可见行"）：候选版在"加载更早"按钮时代写的测试（上游 #3005）。fork 提交 `8088ba7f02` 删除按钮时更新了四个点击驱动测试中的三个，漏了这一个——它在 fork HEAD 上同样失败（已在 `e28de3143c` 的临时 worktree 验证）。现改为驱动合并后的分页手势（reader 经 `scroll`/`scrollend` 抵达顶部），断言一次顶部抵达交付同步产生的两次 `elementsFromPoint` 命中测试（锚定分页捕获 + 持续 `chatScroll.save`），以及两次二分搜索回退的放宽后行矩形预算。
+
+**web-search-ark 文档合规。** 该 fork 新增包早于候选版的文档标准（`doc-standard.spec.ts` 中的 dsh-doc 技能整合门禁）：其 README 对重排到 `package-reference` 模板骨架（frontmatter `kind`/`description`、Summary / Table of Contents / Dev Note，及 概述 / 目录 / 开发备注 对应项）；其配置声明加入生成的 `docs/config-catalog.md`（`gen-config-catalog`；经评审的中文对侧手工更新并重录配对）；zh 侧的 locale 链接改指 `.zh.md` 目标。fork 的 Ark-provider Agent Note 的 zh 侧需要同样的 locale 链接修复。三对均通过 `verify-translation-pairing --write` 重录。
+
+**§6.1 环境性分诊（本机 Mac）。** 其余 `pnpm test` 失败在合并影响之外以相同消息复现，记为主机环境偏差而非合并缺陷：
+
+- `terminal-bash` `local.spec`（6）：`posix_openpt failed: Operation not permitted`——运行门禁链的会话沙箱拒绝 pty 设备。
+- `bash-local` `executor.spec`（1）：基于 `mktemp` 的验证根是 `/var/folders/…`（非规范化）路径，而子进程 `pwd` 报告 `/private/var/folders/…`；断言对两者做相等比较。
+- `code-runtime-python` `runtime.spec`（238）与 `boot-write-failure.spec`（6）：该包只接受 CPython 3.10+ 解释器；主机默认 `python3` 是 3.9.6，而 `/usr/local/bin/python3` 是 3.10.4（spec 经 `PATH` 解析 `python3`）。
+- `run-gates.spec` 的 abort/进程树测试（6）：detached nohup 链下的进程组终止与重父化语义。
+- `transform-corpus.spec`（1）：候选侧问题。`tsx` 的 tsconfig `paths` 把构建产物 dockkit bundle 里对 `@deepseek-ai/dsh-client-ui-primitives` 的裸导入重定向到源码树，于是扫描在 `ui-primitives/src/StateDot.module.css` 失败，而非钉住的基线 `ui-dockkit/lib/components/dockkit.module.css`。在 `b2e3b2a012` 的候选单独 worktree 上以相同方式失败；所有语料相关文件（dockkit、StateDot 源码、两个包 manifest、tsconfig 别名块、spec 与其钉住的基线）在候选与合并树之间字节一致。
+
 ## 备选方案
 
 **在合并之上 cherry-pick `756e2c3830`。** 否决：会把分叉时期的 uuid  workaround 重新塞进已被上游机制取代的位置。
@@ -36,4 +51,4 @@ Status: implemented
 
 ## 后果
 
-合并提交以候选版为结构基底承载适配后的行为；hgg 保存分支以独立合并提交叠加其上。3 个被重新触碰的双语对（两个包 README、providers 指南）在 stage 前通过 `verify-translation-pairing --write` 重录。候选验收（§6）仍需证明组装后的输出：`test:gui`、replay 的 `DSH_SNAPSHOT=replay test:web` 测试道、以及双平台的隔离 App/`start-dsh-web.ps1` 运行。
+合并提交以候选版为结构基底承载适配后的行为；hgg 保存分支以独立合并提交叠加其上。§6.1 的测试期望适配与文档合规作为独立提交落在整合分支上，并在任何打包前重新冻结候选 SHA。被触碰的双语对（两个包 README、providers 指南、Ark README 对、配置目录对、Ark-provider note 对、以及本 note）在 stage 前通过 `verify-translation-pairing --write` 重录。候选验收（§6）仍需证明组装后的输出：`test:gui`、replay 的 `DSH_SNAPSHOT=replay test:web` 测试道、以及双平台的隔离 App/`start-dsh-web.ps1` 运行。
