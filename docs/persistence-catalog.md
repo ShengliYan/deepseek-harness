@@ -1136,6 +1136,17 @@ Source: [`packages/core/session/src/types.ts:297`](../packages/core/session/src/
 
 ### `web/*`
 
+<a id="webark-search-llm-request--log-only"></a>
+
+#### `web/ark-search-llm-request` — log-only
+
+```ts persistence-catalog
+/** Secret-free auxiliary Ark search request recorded before dispatch. */
+'web/ark-search-llm-request': ArkSearchLlmRequest
+```
+
+Source: [`packages/web/web-search-ark/src/provider.ts:73`](../packages/web/web-search-ark/src/provider.ts)
+
 <a id="webdeepseek-search-llm-request--log-only"></a>
 
 #### `web/deepseek-search-llm-request` — log-only
@@ -1145,4 +1156,4 @@ Source: [`packages/core/session/src/types.ts:297`](../packages/core/session/src/
 'web/deepseek-search-llm-request': DeepSeekSearchLlmRequest
 ```
 
-Source: [`packages/web/web-search-deepseek/src/provider.ts:83`](../packages/web/web-search-deepseek/src/provider.ts)
+Source: [`packages/web/web-search-deepseek/src/provider.ts:85`](../packages/web/web-search-deepseek/src/provider.ts)

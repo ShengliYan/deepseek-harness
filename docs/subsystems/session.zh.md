@@ -782,8 +782,8 @@ workspaceDesktop(): { name: string; available: boolean; fileManager: 'finder' | 
 
 /**
  * Fork one cold-readable completed-turn prefix into a new Session.
- * @param request - source Session and optional event anchor.
- * @returns the new Session identity.
+ * @param request - source Session, optional event anchor, and optional rewind cut.
+ * @returns the new Session identity and whether the child seed is empty.
  */
 @Remote('fork') fork(request: SessionForkRequest): Promise<SessionForkValue>
 

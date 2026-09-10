@@ -1515,8 +1515,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: '@Remote(\'fork\') fork(request: SessionForkRequest): Promise<SessionForkValue>',
         description: 'Fork one cold-readable completed-turn prefix into a new Session.',
-        parameters: [{ name: 'request', description: 'source Session and optional event anchor.' }],
-        returns: 'the new Session identity.',
+        parameters: [{ name: 'request', description: 'source Session, optional event anchor, and optional rewind cut.' }],
+        returns: 'the new Session identity and whether the child seed is empty.',
       },
       {
         signature: '@Remote(\'prompt\') prompt(request: SessionPromptRequest, signal: AbortSignal): Promise<SessionPromptValue>',
@@ -5188,7 +5188,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SessionForkRequest',
-    declaration: 'export interface SessionForkRequest {\n    readonly sessionId: SessionId;\n    readonly atSeq?: number;\n}',
+    declaration: 'export interface SessionForkRequest {\n    readonly sessionId: SessionId;\n    readonly atSeq?: number;\n    readonly rewind?: boolean;\n}',
   },
   {
     name: 'SessionForkSource',
@@ -5196,7 +5196,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SessionForkValue',
-    declaration: 'export interface SessionForkValue {\n    readonly sessionId: SessionId;\n}',
+    declaration: 'export interface SessionForkValue {\n    readonly sessionId: SessionId;\n    readonly blank?: boolean;\n}',
   },
   {
     name: 'SessionHandle',
