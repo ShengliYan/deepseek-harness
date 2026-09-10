@@ -6,13 +6,28 @@ const http = require('node:http')
 const updater = require('./updater')
 
 const DEFAULT_PORT = 3080
-const PORT = Number(process.env.DSH_PORT) || DEFAULT_PORT
 const READY_TIMEOUT_MS = 120_000
 
 const APP_NAME = 'DeepSeek Harness'
 
 const { homedir } = require('node:os')
-const MAIN_LOG = path.join(homedir(), 'Library', 'Logs', 'dsh-macos-app-main.log')
+const { resolveAppDataDir, TEST_MODE_PORT } = require('./app-data-dir')
+let appDataError = null
+let appData
+try {
+  appData = resolveAppDataDir(process.env)
+} catch (error) {
+  appDataError = error
+}
+// Test isolation (§5.3): fixed port, main log inside the isolation directory;
+// production keeps DSH_PORT || 3080 and ~/Library/Logs.
+const TEST_MODE = appData !== undefined && appData.mode === 'test'
+const PORT = TEST_MODE
+  ? TEST_MODE_PORT
+  : Number(process.env.DSH_PORT) || DEFAULT_PORT
+const MAIN_LOG = TEST_MODE
+  ? path.join(appData.dir, 'main.log')
+  : path.join(homedir(), 'Library', 'Logs', 'dsh-macos-app-main.log')
 function mainLog(message) {
   try {
     fs.appendFileSync(MAIN_LOG, `${new Date().toISOString()} ${message}\n`)
@@ -157,6 +172,7 @@ function progressUpdate(win, stage, received, total) {
 
 let updateCheckRunning = false
 async function checkForUpdates({ explicit = false } = {}) {
+  if (TEST_MODE) return
   const feedUrl = resolveUpdateFeedUrl()
   if (!feedUrl) {
     if (explicit) {
@@ -459,6 +475,12 @@ function startServer(repoPath, nodeBin, logPath) {
 
     isPortOccupied().then(inUse => {
       if (inUse) {
+        if (TEST_MODE) {
+          // Test isolation must never attach to, or be served by, a pre-existing
+          // service (production or stale test): stop instead.
+          finish(reject, new Error(`端口 ${PORT} 已被占用（测试模式不接管已有服务）。请先结束该进程，再重新打开。`))
+          return
+        }
         // Electron detaches `dsh web`; if the shell quit without killing it,
         // the next launch must attach that process instead of erroring, and
         // must not open a second browser tab.
@@ -488,6 +510,12 @@ function startServer(repoPath, nodeBin, logPath) {
       if (app.isPackaged) {
         delete env.DSH_HOME
         delete env.DSH_SMOKE_PORT
+      }
+      // Test isolation: after the default cleanup above, point the server's
+      // data home at the test directory so sessions, settings, and caches
+      // stay out of the real ~/.dsh.
+      if (TEST_MODE) {
+        env.DSH_HOME = appData.dir
       }
       serverProcess = spawn(nodeBin, args, {
         cwd: repoPath,
@@ -655,8 +683,12 @@ function installMenu() {
       submenu: [
         { role: 'about', label: `关于 ${APP_NAME}` },
         { type: 'separator' },
-        { label: '检查更新…', click: () => { checkForUpdates({ explicit: true }) } },
-        { type: 'separator' },
+        // Test mode disables updates entirely (no check, no install), so the
+        // menu item goes with it.
+        ...(TEST_MODE ? [] : [
+          { label: '检查更新…', click: () => { checkForUpdates({ explicit: true }) } },
+          { type: 'separator' },
+        ]),
         { role: 'hide', label: `隐藏 ${APP_NAME}` },
         { role: 'hideOthers', label: '隐藏其他' },
         { role: 'unhide', label: '全部显示' },
@@ -702,8 +734,23 @@ function installMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
 
-const gotLock = app.requestSingleInstanceLock()
+// Test isolation: redirect userData BEFORE the single-instance lock so the
+// test-mode lock file never contends with the production app's.
+if (!appDataError && TEST_MODE) {
+  const testUserDataDir = path.join(appData.dir, 'electron-userdata')
+  fs.mkdirSync(testUserDataDir, { recursive: true })
+  app.setPath('userData', testUserDataDir)
+}
+
+const gotLock = appDataError ? false : app.requestSingleInstanceLock()
 if (!gotLock) {
+  if (appDataError) {
+    mainLog(`DSH_APP_DATA_DIR invalid: ${appDataError.message}`)
+    dialog.showErrorBox(
+      `${APP_NAME} 启动失败（DSH_APP_DATA_DIR）`,
+      appDataError.message,
+    )
+  }
   app.quit()
 } else {
   app.on('second-instance', () => {
@@ -784,13 +831,16 @@ if (!gotLock) {
     // fresh dist build usually lands while this app is in the background),
     // and every 30s. Errors stay quiet on purpose (the feed is rebuilt in
     // place and can briefly vanish); explicit menu checks surface them.
-    updateOwnBuildId = readOwnBuildId()
-    const pollUpdate = () => {
-      if (!quitting) checkForUpdates().catch(() => {})
+    // Test mode never polls: it must neither check nor install updates.
+    if (!TEST_MODE) {
+      updateOwnBuildId = readOwnBuildId()
+      const pollUpdate = () => {
+        if (!quitting) checkForUpdates().catch(() => {})
+      }
+      setTimeout(pollUpdate, 8_000)
+      setInterval(pollUpdate, 30_000)
+      app.on('browser-window-focus', pollUpdate)
     }
-    setTimeout(pollUpdate, 8_000)
-    setInterval(pollUpdate, 30_000)
-    app.on('browser-window-focus', pollUpdate)
   })
 
   app.on('window-all-closed', () => {
