@@ -17,6 +17,8 @@
 - text: Reply with the single word LIGHTHOUSE and stop. {{clock}}
 - button "Copy":
   - img
+- button "Rewind and edit from here":
+  - img
 - button "Thought for a while" [expanded]:
   - text: Thought for a while
   - img
@@ -35,7 +37,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here — continue in a new conversation":
   - img
 - button "Ran for {{duration}}":
   - img

@@ -43,7 +43,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here — continue in a new conversation":
   - img
 - button "Ran for {{duration}}":
   - img

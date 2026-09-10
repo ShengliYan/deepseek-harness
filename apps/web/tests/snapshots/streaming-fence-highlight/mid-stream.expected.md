@@ -17,6 +17,8 @@
 - text: Stream one TypeScript fence for the highlighting snapshot. {{clock}}
 - button "Copy":
   - img
+- button "Rewind and edit from here":
+  - img
 - button "Context injection @deepseek-ai/dsh-system-prompt":
   - img
   - img

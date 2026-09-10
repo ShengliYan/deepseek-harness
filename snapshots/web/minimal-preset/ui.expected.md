@@ -17,6 +17,8 @@
 - text: "Use the bash tool to run exactly: printf 'MINIMAL_BASH_CARD_OK\\n'. Then reply exactly MINIMAL_PRESET_REQUEST_OK and stop. {{clock}}"
 - button "Copy":
   - img
+- button "Rewind and edit from here":
+  - img
 - button "1 tool call" [expanded]:
   - text: 1 tool call
   - img
@@ -32,7 +34,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here — continue in a new conversation":
   - img
 - button "Ran for {{duration}}":
   - img

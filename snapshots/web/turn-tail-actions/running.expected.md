@@ -18,6 +18,8 @@
 - button "Copy":
   - img
 - tooltip "Copy"
+- button "Rewind and edit from here":
+  - img
 - button "Context injection @deepseek-ai/dsh-system-prompt":
   - img
   - img

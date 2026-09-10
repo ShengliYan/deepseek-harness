@@ -17,6 +17,8 @@
 - text: Use the ask_user_question tool to ask me exactly one question with id "checkpoint", question "Ready to continue?", header "Checkpoint", and options labeled "Yes" and "No". After I answer, reply with one short sentence acknowledging my answer and stop. {{clock}}
 - button "Copy":
   - img
+- button "Rewind and edit from here":
+  - img
 - button "Context injection @deepseek-ai/dsh-system-prompt":
   - img
   - img

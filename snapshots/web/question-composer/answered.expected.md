@@ -17,6 +17,8 @@
 - text: "Use the ask_user_question tool to ask me exactly one multi-select question with id \"color\", question \"Which color do you prefer?\", header \"Pick one\", and two options: label \"Blue\" with description \"A cool recessive hue that reads as calm and trustworthy in long reading sessions and dense dashboards.\", and label \"Green\" with description \"A restful mid-spectrum hue with the highest perceived brightness, easiest on the eye over long sessions.\" Set multi_select to true. After I answer, reply with the single word DONE and stop. {{clock}}"
 - button "Copy":
   - img
+- button "Rewind and edit from here":
+  - img
 - button "1 tool call":
   - text: 1 tool call
   - img
@@ -27,7 +29,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here — continue in a new conversation":
   - img
 - button "Ran for {{duration}}":
   - img
@@ -47,6 +49,6 @@
 - button "1 turns 2 steps · {{throughput}} tok/s":
   - img
   - text: 1 turns 2 steps{{throughput}} tok/s
-- button "8.8K tok · Cache hit 95.00%":
+- button "8.8K tok · Cache hit 95.38%":
   - img
-  - text: 8.8K tokCache hit 95.00%
+  - text: 8.8K tokCache hit 95.38%

@@ -17,6 +17,8 @@
 - text: "Use one run_code program to do the following in order. Call present for missing.txt and catch its error without creating that file. Use bash to run exactly `printf \"DELIVERED_REPORT\\n\" > report.txt; printf \"DELIVERED_NOTE\\n\" > 说明.txt`. Call present for report.txt and 说明.txt. After present succeeds, deliberately throw the string \"AFTER_PRESENT\" (not an Error object) from that same run_code program. Do not retry the program or create any other files. Finish by mentioning `report.txt` and `说明.txt` in inline code, and put PRESENT_DONE in a separate paragraph. {{clock}}"
 - button "Copy":
   - img
+- button "Rewind and edit from here":
+  - img
 - button "1 tool call" [expanded]:
   - text: 1 tool call
   - img
@@ -81,7 +83,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here — continue in a new conversation":
   - img
 - button "Usage 19K tok":
   - img
@@ -104,6 +106,6 @@
 - button "1 turns 2 steps · {{throughput}} tok/s":
   - img
   - text: 1 turns 2 steps{{throughput}} tok/s
-- button "19K tok · Cache hit 94%":
+- button "19K tok · Cache hit 94.06%":
   - img
-  - text: 19K tokCache hit 94%
+  - text: 19K tokCache hit 94.06%

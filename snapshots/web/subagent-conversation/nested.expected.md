@@ -5,6 +5,11 @@
     - 'button "Switch subagent: event-sourcing researcher"': event-sourcing researcher
     - text: /
     - 'button "Switch subagent: example editor"': example editor
+  - button "Previous version":
+    - img
+  - text: 3/4
+  - button "Next version" [disabled]:
+    - img
   - button "More actions":
     - img
   - button "Open right sidebar":
@@ -14,6 +19,13 @@
     - tab "Trajectory"
 - text: Give one concrete event sourcing example. {{clock}}
 - button "Copy":
+  - img
+- button "Rewind and edit from here":
+  - img
+- button "Previous version":
+  - img
+- text: 3/4
+- button "Next version" [disabled]:
   - img
 - status:
   - strong: This subagent is read-only for now

@@ -11,6 +11,8 @@
 - text: "Assemble the link gallery: write the report and styles, inspect the sources, and summarize. {{clock}}"
 - button "Copy":
   - img
+- button "Rewind and edit from here":
+  - img
 - button "16 tool calls" [expanded]:
   - text: 16 tool calls
   - img
@@ -183,7 +185,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here — continue in a new conversation":
   - img
 - button "Ran for {{duration}}":
   - img

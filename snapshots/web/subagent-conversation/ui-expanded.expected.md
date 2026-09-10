@@ -6,6 +6,11 @@
     - button "1 subagent":
       - text: 1 subagent
       - img
+  - button "Previous version":
+    - img
+  - text: 2/4
+  - button "Next version":
+    - img
   - img
   - text: Standard mode
   - button "More actions":
@@ -25,6 +30,13 @@
 - text: "Explain event sourcing in one sentence.Your parent agent id is \"session-{{uuid}}\". Before you finish, send your result to that agent with send_message({ agent_id: \"session-{{uuid}}\", message: \"<self-contained result>\" }). The parent shares your workspace but does not automatically receive your transcript, tool output, or reasoning. Send earlier messages as well when a finding changes what the parent should do next; sending a message does not end your turn. {{clock}}"
 - button "Copy":
   - img
+- button "Rewind and edit from here":
+  - img
+- button "Previous version":
+  - img
+- text: 2/4
+- button "Next version":
+  - img
 - button "Thought for a while" [expanded]:
   - text: Thought for a while
   - img
@@ -43,7 +55,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here — continue in a new conversation":
   - img
 - button "Ran for {{duration}}":
   - img
@@ -55,6 +67,13 @@
   - text: System prompt
 - text: Now give the same explanation to a human reader. {{clock}}
 - button "Copy":
+  - img
+- button "Rewind and edit from here":
+  - img
+- button "Previous version":
+  - img
+- text: 2/4
+- button "Next version":
   - img
 - button "Thought for a while" [expanded]:
   - text: Thought for a while
@@ -70,7 +89,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here — continue in a new conversation":
   - img
 - button "Ran for {{duration}}":
   - img

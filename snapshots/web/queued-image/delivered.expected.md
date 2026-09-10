@@ -21,6 +21,8 @@
 - text: Reply with a one-sentence description of event sourcing, then stop. {{clock}}
 - button "Copy":
   - img
+- button "Rewind and edit from here":
+  - img
 - button "Thought for a while":
   - text: Thought for a while
   - img
@@ -32,7 +34,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here — continue in a new conversation":
   - img
 - button "Ran for {{duration}}":
   - img
@@ -43,6 +45,8 @@
 - text: Compare with this screenshot {{clock}}
 - button "Copy":
   - img
+- button "Rewind and edit from here":
+  - img
 - button "Thought for a while":
   - text: Thought for a while
   - img
@@ -53,7 +57,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here — continue in a new conversation":
   - img
 - button "Ran for {{duration}}":
   - img
@@ -61,6 +65,8 @@
 - text: {{clock}} Continue with the queued comparison {{clock}}
 - button "Copy":
   - img
+- button "Rewind and edit from here":
+  - img
 - button "Thought for a while":
   - text: Thought for a while
   - img
@@ -71,7 +77,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here — continue in a new conversation":
   - img
 - button "Ran for {{duration}}":
   - img
@@ -91,6 +97,6 @@
 - button "3 turns 3 steps · {{throughput}} tok/s":
   - img
   - text: 3 turns 3 steps{{throughput}} tok/s
-- button "15.7K tok · Cache hit 99%":
+- button "15.7K tok · Cache hit 98.59%":
   - img
-  - text: 15.7K tokCache hit 99%
+  - text: 15.7K tokCache hit 98.59%

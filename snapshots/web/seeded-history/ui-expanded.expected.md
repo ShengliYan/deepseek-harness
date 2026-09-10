@@ -18,6 +18,8 @@
 - text: "Use the read tool twice in one assistant message: read a.txt and b.txt. Then reply with the single word DONE and stop. {{clock}}"
 - button "Copy":
   - img
+- button "Rewind and edit from here":
+  - img
 - button "2 tool calls" [expanded]:
   - text: 2 tool calls
   - img
@@ -46,7 +48,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here — continue in a new conversation":
   - img
 - button "Ran for {{duration}}":
   - img

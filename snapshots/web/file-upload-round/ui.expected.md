@@ -20,6 +20,8 @@
 - text: Read the attached file with the read tool, reply with exactly the single word it contains, and stop. {{clock}}
 - button "Copy":
   - img
+- button "Rewind and edit from here":
+  - img
 - button "1 tool call":
   - text: 1 tool call
   - img
@@ -30,7 +32,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here — continue in a new conversation":
   - img
 - button "Usage 17.3K tok":
   - img
@@ -53,6 +55,6 @@
 - button "1 turns 2 steps · {{throughput}} tok/s":
   - img
   - text: 1 turns 2 steps{{throughput}} tok/s
-- button "17.3K tok · Cache hit 51%":
+- button "17.3K tok · Cache hit 50.67%":
   - img
-  - text: 17.3K tokCache hit 51%
+  - text: 17.3K tokCache hit 50.67%

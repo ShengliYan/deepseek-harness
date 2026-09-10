@@ -11,6 +11,8 @@
 - text: Render this mathematical proof. {{clock}}
 - button "Copy":
   - img
+- button "Rewind and edit from here":
+  - img
 - heading "Math rendering" [level=2]
 - paragraph:
   - text: Inline dollar
@@ -38,7 +40,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here — continue in a new conversation":
   - img
 - button "Ran for {{duration}}":
   - img

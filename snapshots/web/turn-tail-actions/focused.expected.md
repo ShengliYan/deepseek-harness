@@ -17,6 +17,8 @@
 - text: Begin your reply with the plain sentence "Reading the workspace now." as text, and in that same message call the bash tool with the command "echo alpha". After the tool result, reply with the single word DONE and stop. {{clock}}
 - button "Copy":
   - img
+- button "Rewind and edit from here":
+  - img
 - button "1 tool call · 1 message" [expanded]:
   - text: 1 tool call · 1 message
   - img
@@ -40,7 +42,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here — continue in a new conversation":
   - img
 - button "Usage 15.8K tok":
   - img
@@ -63,6 +65,6 @@
 - button "1 turns 2 steps · {{throughput}} tok/s":
   - img
   - text: 1 turns 2 steps{{throughput}} tok/s
-- button "15.8K tok · Cache hit 50.00%":
+- button "15.8K tok · Cache hit 49.74%":
   - img
-  - text: 15.8K tokCache hit 50.00%
+  - text: 15.8K tokCache hit 49.74%

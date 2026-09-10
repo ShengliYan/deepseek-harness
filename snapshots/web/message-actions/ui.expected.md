@@ -32,7 +32,7 @@
   - img
 - button "Bad response":
   - img
-- button "Rewind here - continue in a new conversation" [disabled]:
+- button "Rewind here — continue in a new conversation" [disabled]:
   - img
 - text: Available only on the last message of a completed turn
 - button "Ran for {{duration}}":
@@ -65,7 +65,7 @@
   - img
 - button "Bad response":
   - img
-- button "Rewind here - continue in a new conversation":
+- button "Rewind here — continue in a new conversation":
   - img
 - button "Ran for {{duration}}":
   - img

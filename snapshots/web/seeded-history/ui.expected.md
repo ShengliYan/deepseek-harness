@@ -18,6 +18,8 @@
 - text: "Use the read tool twice in one assistant message: read a.txt and b.txt. Then reply with the single word DONE and stop. {{clock}}"
 - button "Copy":
   - img
+- button "Rewind and edit from here":
+  - img
 - button "2 tool calls":
   - text: 2 tool calls
   - img
@@ -28,7 +30,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here — continue in a new conversation":
   - img
 - button "Ran for {{duration}}":
   - img
@@ -52,6 +54,6 @@
 - button "1 turns 2 steps · {{throughput}} tok/s":
   - img
   - text: 1 turns 2 steps{{throughput}} tok/s
-- button "16K tok · Cache hit 98.00%":
+- button "16K tok · Cache hit 97.86%":
   - img
-  - text: 16K tokCache hit 98.00%
+  - text: 16K tokCache hit 97.86%

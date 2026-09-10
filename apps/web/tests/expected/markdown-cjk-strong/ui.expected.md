@@ -11,6 +11,8 @@
 - text: Render adjacent CJK strong emphasis. {{clock}}
 - button "Copy":
   - img
+- button "Rewind and edit from here":
+  - img
 - heading "CJK strong emphasis" [level=2]
 - paragraph:
   - strong: 注意：
@@ -43,7 +45,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here — continue in a new conversation":
   - img
 - button "Ran for {{duration}}":
   - img

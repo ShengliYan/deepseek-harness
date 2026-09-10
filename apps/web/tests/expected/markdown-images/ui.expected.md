@@ -11,6 +11,8 @@
 - text: Show the Markdown image policy. {{clock}}
 - button "Copy":
   - img
+- button "Rewind and edit from here":
+  - img
 - heading "Markdown images" [level=2]
 - paragraph:
   - img "Remote test image"
@@ -29,7 +31,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here — continue in a new conversation":
   - img
 - button "Ran for {{duration}}":
   - img

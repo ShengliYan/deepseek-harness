@@ -17,6 +17,8 @@
 - text: Reply with the single word LIGHTHOUSE and stop. {{clock}}
 - button "Copy":
   - img
+- button "Rewind and edit from here":
+  - img
 - button "Thought for a while" [expanded]:
   - text: Thought for a while
   - img
@@ -35,7 +37,7 @@
   - img
 - button "Bad response":
   - img
-- button "Branch into a new conversation":
+- button "Rewind here — continue in a new conversation":
   - img
 - button "Ran for {{duration}}":
   - img
@@ -59,6 +61,6 @@
 - button "1 turns 1 steps · {{throughput}} tok/s":
   - img
   - text: 1 turns 1 steps{{throughput}} tok/s
-- button "7.8K tok · Cache hit 99.00%":
+- button "7.8K tok · Cache hit 98.60%":
   - img
-  - text: 7.8K tokCache hit 99.00%
+  - text: 7.8K tokCache hit 98.60%
